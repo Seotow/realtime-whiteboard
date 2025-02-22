@@ -1,24 +1,126 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
+import { authService } from '@/services/authService';
+import { authenticateToken } from '@/middleware/auth';
+import { validateInput } from '@/middleware/validation';
+import { registerSchema, loginSchema, refreshTokenSchema } from '@/schemas/authSchemas';
+import { logger } from '@/utils/logger';
 
 export const authRoutes = Router();
 
-// Placeholder auth routes
-authRoutes.post('/register', (req, res) => {
-  res.json({ message: 'Register endpoint - coming soon' });
+// Register endpoint
+authRoutes.post('/register', validateInput(registerSchema), async (req: Request, res: Response) => {
+  try {
+    const { email, username, password } = req.body;
+    
+    const result = await authService.register({ email, username, password });
+    
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      data: result,
+    });
+  } catch (error) {
+    logger.error('Registration failed:', error);
+    
+    const message = error instanceof Error ? error.message : 'Registration failed';
+    const statusCode = message.includes('already exists') ? 409 : 400;
+    
+    res.status(statusCode).json({
+      success: false,
+      message,
+    });
+  }
 });
 
-authRoutes.post('/login', (req, res) => {
-  res.json({ message: 'Login endpoint - coming soon' });
+// Login endpoint
+authRoutes.post('/login', validateInput(loginSchema), async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    
+    const result = await authService.login({ email, password });
+    
+    res.json({
+      success: true,
+      message: 'Login successful',
+      data: result,
+    });
+  } catch (error) {
+    logger.error('Login failed:', error);
+    
+    const message = error instanceof Error ? error.message : 'Login failed';
+    const statusCode = message.includes('Invalid') ? 401 : 400;
+    
+    res.status(statusCode).json({
+      success: false,
+      message,
+    });
+  }
 });
 
-authRoutes.post('/logout', (req, res) => {
-  res.json({ message: 'Logout endpoint - coming soon' });
+// Refresh token endpoint
+authRoutes.post('/refresh', validateInput(refreshTokenSchema), async (req: Request, res: Response) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    const result = await authService.refreshToken(refreshToken);
+    
+    res.json({
+      success: true,
+      message: 'Token refreshed successfully',
+      data: result,
+    });
+  } catch (error) {
+    logger.error('Token refresh failed:', error);
+    
+    res.status(401).json({
+      success: false,
+      message: 'Invalid refresh token',
+    });
+  }
 });
 
-authRoutes.post('/refresh', (req, res) => {
-  res.json({ message: 'Refresh token endpoint - coming soon' });
+// Get current user profile
+authRoutes.get('/me', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: 'User not authenticated',
+      });
+      return;
+    }
+
+    const user = await authService.getUserById(req.user.userId);
+    
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+      return;
+    }
+
+    // Remove sensitive information
+    const { password, ...userProfile } = user;
+    
+    res.json({
+      success: true,
+      data: { user: userProfile },
+    });
+  } catch (error) {
+    logger.error('Get profile failed:', error);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get user profile',
+    });
+  }
 });
 
-authRoutes.get('/me', (req, res) => {
-  res.json({ message: 'Get user profile endpoint - coming soon' });
+// Logout endpoint (for client-side token cleanup)
+authRoutes.post('/logout', authenticateToken, (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    message: 'Logout successful',
+  });
 });
