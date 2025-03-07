@@ -1,0 +1,93 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  username  String   @unique
+  password  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships with other models (for future use)
+  boards    Board[]
+  sessions  Session[]
+
+  @@map("users")
+}
+
+model Board {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Owner of the board
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Board data and collaborators (for future use)
+  collaborators BoardCollaborator[]
+  activities    BoardActivity[]
+
+  @@map("boards")
+}
+
+model BoardCollaborator {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  role    String @default("viewer") // viewer, editor, admin
+  addedAt DateTime @default(now())
+
+  // Relations
+  boardId String @db.ObjectId
+  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  userId String @db.ObjectId
+  // Note: In MongoDB with Prisma, we'll handle user lookup separately to avoid circular references
+
+  @@unique([boardId, userId])
+  @@map("board_collaborators")
+}
+
+model BoardActivity {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  action    String   // created, updated, deleted, joined, left
+  details   Json?    // Additional activity details
+  createdAt DateTime @default(now())
+
+  // Relations  
+  boardId String @db.ObjectId
+  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  userId String @db.ObjectId
+  // Note: User lookup handled separately
+
+  @@map("board_activities")
+}
+
+model Session {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionToken String   @unique
+  refreshToken String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}

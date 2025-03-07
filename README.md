@@ -76,7 +76,7 @@ docker-compose up --build
 
 ### Phase 1: Core Features ✅
 - [x] Modern project setup with latest dependencies
-- [ ] User authentication (JWT)
+- [x] User authentication (JWT)
 - [ ] Basic drawing tools (pen, eraser)
 - [ ] Real-time collaboration
 - [ ] Basic shapes (rectangle, circle, line)

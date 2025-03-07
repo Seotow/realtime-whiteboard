@@ -1,11 +1,9 @@
 import bcrypt from 'bcryptjs';
-import jwt, { SignOptions } from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
-import { User, CreateUserRequest, LoginRequest, AuthResponse, JwtPayload } from '@/types/auth';
+import jwt from 'jsonwebtoken';
+import { CreateUserRequest, LoginRequest, AuthResponse, JwtPayload } from '@/types/auth';
 import { logger } from '@/utils/logger';
-
-// In-memory user storage (replace with database in production)
-const users: User[] = [];
+import { db } from '@/services/database';
+import { User } from '@prisma/client';
 
 export class AuthService {
   private readonly JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -15,34 +13,39 @@ export class AuthService {
 
   async register(userData: CreateUserRequest): Promise<AuthResponse> {
     try {
-      // Check if user already exists
-      const existingUser = users.find(u => u.email === userData.email || u.username === userData.username);
-      if (existingUser) {
+      const existingByEmail = await db.prisma.user.findUnique({
+        where: { email: userData.email }
+      });
+      const existingByUsername = await db.prisma.user.findUnique({
+        where: { username: userData.username }
+      });
+      if (existingByEmail || existingByUsername) {
         throw new Error('User with this email or username already exists');
       }
-
       // Hash password
       const hashedPassword = await bcrypt.hash(userData.password, 12);
-
       // Create new user
-      const newUser: User = {
-        id: uuidv4(),
-        email: userData.email,
-        username: userData.username,
-        password: hashedPassword,
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      users.push(newUser);
-
+      const newUser = await db.prisma.user.create({
+        data: {
+          email: userData.email,
+          username: userData.username,
+          password: hashedPassword,
+          isActive: true,
+        }
+      });
       // Generate tokens
       const token = this.generateAccessToken(newUser);
       const refreshToken = this.generateRefreshToken(newUser);
-
+      // Store refresh token in database
+      await db.prisma.session.create({
+        data: {
+          userId: newUser.id,
+          sessionToken: token,
+          refreshToken: refreshToken,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        }
+      });
       logger.info(`User registered: ${newUser.email}`);
-
       return {
         user: this.sanitizeUser(newUser),
         token,
@@ -57,28 +60,34 @@ export class AuthService {
   async login(loginData: LoginRequest): Promise<AuthResponse> {
     try {
       // Find user by email
-      const user = users.find(u => u.email === loginData.email);
+      const user = await db.prisma.user.findUnique({
+        where: { email: loginData.email }
+      });
       if (!user) {
         throw new Error('Invalid email or password');
       }
-
       // Check if user is active
       if (!user.isActive) {
         throw new Error('Account is deactivated');
       }
-
       // Verify password
       const isPasswordValid = await bcrypt.compare(loginData.password, user.password);
       if (!isPasswordValid) {
         throw new Error('Invalid email or password');
       }
-
       // Generate tokens
       const token = this.generateAccessToken(user);
       const refreshToken = this.generateRefreshToken(user);
-
+      // Always create a new session (allow multiple sessions per user)
+      await db.prisma.session.create({
+        data: {
+          userId: user.id,
+          sessionToken: token,
+          refreshToken: refreshToken,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        }
+      });
       logger.info(`User logged in: ${user.email}`);
-
       return {
         user: this.sanitizeUser(user),
         token,
@@ -93,15 +102,30 @@ export class AuthService {
   async refreshToken(refreshToken: string): Promise<AuthResponse> {
     try {
       const decoded = jwt.verify(refreshToken, this.JWT_REFRESH_SECRET) as JwtPayload;
-      
-      const user = users.find(u => u.id === decoded.userId);
-      if (!user || !user.isActive) {
+      // Find session with refresh token
+      const session = await db.prisma.session.findFirst({
+        where: {
+          refreshToken: refreshToken,
+          expiresAt: { gt: new Date() },
+        },
+        include: { user: true }
+      });
+      if (!session || !session.user || !session.user.isActive) {
         throw new Error('Invalid refresh token');
       }
-
+      const user = session.user;
       const newToken = this.generateAccessToken(user);
       const newRefreshToken = this.generateRefreshToken(user);
-
+      // Update session with new tokens
+      await db.prisma.session.update({
+        where: { id: session.id },
+        data: {
+          sessionToken: newToken,
+          refreshToken: newRefreshToken,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+          updatedAt: new Date(),
+        }
+      });
       return {
         user: this.sanitizeUser(user),
         token: newToken,
@@ -114,11 +138,40 @@ export class AuthService {
   }
 
   async getUserById(userId: string): Promise<User | null> {
-    return users.find(u => u.id === userId) || null;
+    try {
+      const user = await db.prisma.user.findUnique({
+        where: { id: userId }
+      });
+      return user;
+    } catch (error) {
+      logger.error('Get user by ID error:', error);
+      return null;
+    }
   }
 
   async getUserByEmail(email: string): Promise<User | null> {
-    return users.find(u => u.email === email) || null;
+    try {
+      const user = await db.prisma.user.findUnique({
+        where: { email: email }
+      });
+      return user;
+    } catch (error) {
+      logger.error('Get user by email error:', error);
+      return null;
+    }
+  }
+
+  async logout(userId: string): Promise<void> {
+    try {
+      // Remove all sessions for the user
+      await db.prisma.session.deleteMany({
+        where: { userId: userId }
+      });
+      logger.info(`User logged out: ${userId}`);
+    } catch (error) {
+      logger.error('Logout error:', error);
+      throw error;
+    }
   }
 
   verifyToken(token: string): JwtPayload {
@@ -127,7 +180,7 @@ export class AuthService {
     } catch (error) {
       throw new Error('Invalid token');
     }
-  }  private generateAccessToken(user: User): string {
+  }private generateAccessToken(user: User): string {
     const payload = {
       userId: user.id,
       email: user.email,
@@ -152,8 +205,16 @@ export class AuthService {
   }
 
   private sanitizeUser(user: User): Omit<User, 'password'> {
-    const { password, ...sanitizedUser } = user;
-    return sanitizedUser;
+    // Remove password and ensure all nullable fields are handled
+    // (Prisma returns null for missing fields, but our type expects undefined)
+    // We'll convert nulls to undefined for compatibility
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...rest } = user;
+    const sanitized: any = { ...rest };
+    Object.keys(sanitized).forEach((key) => {
+      if (sanitized[key] === null) sanitized[key] = undefined;
+    });
+    return sanitized;
   }
 }
 

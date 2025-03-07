@@ -1,13 +1,6 @@
-export interface User {
-  id: string;
-  email: string;
-  username: string;
-  password: string;
-  avatar?: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { User as PrismaUser } from '@prisma/client';
+
+export type User = PrismaUser;
 
 export interface CreateUserRequest {
   email: string;
