@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthPage } from './pages/AuthPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { BoardPage } from './pages/BoardPage';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { useAuthStore } from './stores/authStore';
 import './App.css';
@@ -33,6 +34,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <DashboardPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/board/:boardId" 
+              element={
+                <ProtectedRoute>
+                  <BoardPage />
                 </ProtectedRoute>
               } 
             />

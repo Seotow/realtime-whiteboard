@@ -19,9 +19,12 @@ export const authenticateToken = async (
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
+    console.log('Auth: Authorization header:', authHeader);
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    console.log('Auth: Extracted token:', token ? 'present' : 'missing');
 
     if (!token) {
+      console.log('Auth: No token provided');
       res.status(401).json({
         success: false,
         message: 'Access token required',
@@ -29,6 +32,7 @@ export const authenticateToken = async (
       return;
     }
 
+    console.log('Auth: Verifying token with authService');
     const decoded = authService.verifyToken(token);
     req.user = decoded;
     next();

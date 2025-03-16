@@ -1,0 +1,239 @@
+.canvas-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Enhanced Toolbar Styles */
+.canvas-toolbar {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    padding: 16px;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    z-index: 10;
+    max-width: calc(100vw - 40px);
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.canvas-toolbar::-webkit-scrollbar {
+    display: none;
+}
+
+.tool-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding-right: 20px;
+    border-right: 2px solid #f1f5f9;
+    min-width: fit-content;
+}
+
+.tool-group:last-child {
+    border-right: none;
+    padding-right: 0;
+}
+
+/* Tool Button Styles */
+.tool-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 2px solid #e2e8f0;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #64748b;
+}
+
+.tool-btn:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #475569;
+    transform: translateY(-1px);
+}
+
+.tool-btn.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.tool-btn.danger {
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.tool-btn.danger:hover {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #dc2626;
+}
+
+/* Color Picker Styles */
+.color-picker-container {
+    position: relative;
+}
+
+.color-picker-btn {
+    width: 44px;
+    height: 44px;
+    border: 3px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.color-picker-btn:hover {
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+}
+
+.color-picker-dropdown {
+    position: absolute;
+    top: 52px;
+    left: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    z-index: 20;
+    min-width: 200px;
+}
+
+.preset-colors {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.color-preset {
+    width: 32px;
+    height: 32px;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.color-preset:hover {
+    border-color: #3b82f6;
+    transform: scale(1.1);
+}
+
+.color-preset.active {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.custom-color-input {
+    width: 100%;
+    height: 40px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* Brush Size Styles */
+.brush-size-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 120px;
+}
+
+.brush-size-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #64748b;
+    min-width: 28px;
+}
+
+.brush-size-slider {
+    flex: 1;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+}
+
+.brush-size-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #3b82f6;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.brush-size-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #3b82f6;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.brush-size-value {
+    font-size: 12px;
+    font-weight: 500;
+    color: #475569;
+    min-width: 32px;
+    text-align: center;
+}
+
+/* Zoom Level Display */
+.zoom-level {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    min-width: 40px;
+    text-align: center;
+    padding: 0 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .canvas-toolbar {
+        flex-wrap: wrap;
+        max-height: 50vh;
+        overflow-y: auto;
+    }
+
+    .tool-group {
+        border-right: none;
+        border-bottom: 2px solid #f1f5f9;
+        padding-right: 0;
+        padding-bottom: 12px;
+        margin-bottom: 12px;
+    }
+
+    .tool-group:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .brush-size-container {
+        min-width: 100px;
+    }
+}

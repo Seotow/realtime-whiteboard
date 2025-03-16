@@ -31,6 +31,10 @@ model Board {
   title       String
   description String?
   isPublic    Boolean  @default(false)
+  isTemplate  Boolean  @default(false)
+  thumbnail   String?
+  content     Json?    // Canvas content (Fabric.js JSON)
+  settings    Json?    // Board settings (dimensions, background, etc.)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -38,7 +42,7 @@ model Board {
   userId String @db.ObjectId
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Board data and collaborators (for future use)
+  // Board data and collaborators
   collaborators BoardCollaborator[]
   activities    BoardActivity[]
 
