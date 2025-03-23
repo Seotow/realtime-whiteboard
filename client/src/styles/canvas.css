@@ -19,7 +19,7 @@
     align-items: center;
     z-index: 10;
     max-width: calc(100vw - 40px);
-    overflow-x: auto;
+    overflow: visible; /* Allow dropdowns to show outside toolbar */
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
@@ -55,6 +55,8 @@
     cursor: pointer;
     transition: all 0.2s ease;
     color: #64748b;
+    position: relative;
+    overflow: hidden;
 }
 
 .tool-btn:hover {
@@ -80,6 +82,21 @@
     background: #fef2f2;
     border-color: #dc2626;
     color: #dc2626;
+}
+
+.tool-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.3s;
+}
+
+.tool-btn:hover::before {
+    left: 100%;
 }
 
 /* Color Picker Styles */
@@ -201,6 +218,80 @@
     text-align: center;
 }
 
+/* Enhanced Brush Controls */
+.brush-type-container,
+.opacity-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 80px;
+}
+
+.brush-type-label,
+.opacity-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.brush-type-select {
+    padding: 4px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 12px;
+    background: white;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.brush-type-select:hover {
+    border-color: #3b82f6;
+}
+
+.brush-type-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.opacity-slider {
+    width: 60px;
+    height: 4px;
+    background: linear-gradient(to right, transparent, currentColor);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.opacity-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #3b82f6;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.opacity-slider::-webkit-slider-thumb:hover {
+    background: #2563eb;
+    transform: scale(1.1);
+}
+
+.opacity-value {
+    font-size: 11px;
+    font-weight: 500;
+    color: #64748b;
+    min-width: 28px;
+    text-align: center;
+}
+
 /* Zoom Level Display */
 .zoom-level {
     font-size: 12px;
@@ -211,29 +302,95 @@
     padding: 0 8px;
 }
 
+/* Drawing state indicator */
+.canvas-container.drawing {
+    cursor: crosshair;
+}
+
+.canvas-container.drawing .canvas-toolbar {
+    pointer-events: none;
+}
+
+.canvas-container.drawing .canvas-toolbar .tool-btn.active {
+    background-color: #3b82f6;
+    color: white;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+/* Tool-specific cursor styles */
+.canvas-container.tool-pen canvas {
+    cursor: crosshair !important;
+}
+
+.canvas-container.tool-select canvas {
+    cursor: default !important;
+}
+
+.canvas-container.tool-eraser canvas {
+    cursor: crosshair !important;
+}
+
+.canvas-container.panning canvas {
+    cursor: grabbing !important;
+}
+
+.canvas-container.space-pressed canvas {
+    cursor: grab !important;
+}
+
+/* Pan and zoom instructions */
+.canvas-instructions {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    z-index: 5;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.canvas-container:hover .canvas-instructions {
+    opacity: 1;
+}
+
+.canvas-instructions kbd {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 11px;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .canvas-toolbar {
         flex-wrap: wrap;
-        max-height: 50vh;
+        max-height: 60vh;
         overflow-y: auto;
+        padding: 12px;
+        gap: 12px;
     }
-
+    
     .tool-group {
-        border-right: none;
-        border-bottom: 2px solid #f1f5f9;
-        padding-right: 0;
-        padding-bottom: 12px;
-        margin-bottom: 12px;
+        min-width: auto;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding-right: 12px;
+        border-right-width: 1px;
     }
-
-    .tool-group:last-child {
-        border-bottom: none;
-        margin-bottom: 0;
-        padding-bottom: 0;
+    
+    .brush-size-container,
+    .brush-type-container,
+    .opacity-container {
+        min-width: 60px;
     }
-
-    .brush-size-container {
-        min-width: 100px;
+    
+    .brush-size-slider,
+    .opacity-slider {
+        width: 40px;
     }
 }

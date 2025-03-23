@@ -18,7 +18,9 @@ import {
   RotateCw,
   ZoomIn,
   ZoomOut,
-  Home
+  Home,
+  Minus,
+  ArrowRight
 } from 'lucide-react';
 import '../../styles/canvas.css';
 
@@ -39,11 +41,18 @@ export const Canvas: React.FC<CanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
-  const [currentTool, setCurrentTool] = useState<'pen' | 'eraser' | 'select'>('pen');
+  const [currentTool, setCurrentTool] = useState<'pen' | 'eraser' | 'select' | 'line' | 'arrow'>('pen');
   const [brushColor, setBrushColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(2);
+  const [brushType, setBrushType] = useState<'pencil' | 'circle' | 'spray'>('pencil');
   const [zoom, setZoom] = useState(1);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [opacity, setOpacity] = useState(1);
+  const [isPanning, setIsPanning] = useState(false);  const [lastPanPoint, setLastPanPoint] = useState<{x: number, y: number} | null>(null);
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [isAltPressed, setIsAltPressed] = useState(false);
+  const [canvasInitialized, setCanvasInitialized] = useState(false);
 
   const { currentBoard, emitCanvasAction } = useBoardStore();
   const { user } = useAuthStore();
@@ -54,6 +63,163 @@ export const Canvas: React.FC<CanvasProps> = ({
     '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', '#800080',
     '#FFC0CB', '#A52A2A', '#808080', '#000080', '#008000'
   ];
+
+  // History management for undo/redo
+  const [canvasHistory, setCanvasHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  // Save canvas state to history
+  const saveCanvasState = useCallback(() => {
+    if (!fabricCanvasRef.current) return;
+    
+    const canvas = fabricCanvasRef.current;
+    const canvasJson = JSON.stringify(canvas.toJSON());
+    
+    setCanvasHistory(prev => {
+      const newHistory = prev.slice(0, historyIndex + 1);
+      newHistory.push(canvasJson);
+      return newHistory.slice(-20); // Keep only last 20 states
+    });
+    
+    setHistoryIndex(prev => Math.min(prev + 1, 19));
+  }, [historyIndex]);
+  // Event handlers using useCallback to prevent re-creation
+  const handlePathCreated = useCallback((e: any) => {
+    if (!e.path || !user) return;
+
+    const pathData = e.path.toObject() as unknown as Record<string, unknown>;
+    const pathObject = e.path as FabricObjectWithId;
+    pathObject.id = pathObject.id || Date.now().toString();
+    
+    setIsDrawing(false);
+    saveCanvasState();
+    
+    emitCanvasAction({
+      type: 'add',
+      objectId: pathObject.id,
+      object: pathData,
+      boardId,
+      userId: user.id,
+      timestamp: new Date()
+    });
+
+    socketService.emitDrawEnd({
+      boardId,
+      object: pathData
+    });
+  }, [user, boardId, emitCanvasAction, saveCanvasState]);
+
+  const handleObjectModified = useCallback((e: any) => {
+    if (!e.target || !user) return;
+
+    const objectData = e.target.toObject() as unknown as Record<string, unknown>;
+    const targetObject = e.target as FabricObjectWithId;
+    
+    saveCanvasState();
+    
+    emitCanvasAction({
+      type: 'update',
+      objectId: targetObject.id || Date.now().toString(),
+      object: objectData,
+      boardId,
+      userId: user.id,
+      timestamp: new Date()
+    });
+  }, [user, boardId, emitCanvasAction, saveCanvasState]);
+
+  const handleSelectionCreated = useCallback((e: any) => {
+    if (!e.selected || !user) return;
+
+    const selectedIds = e.selected.map((obj: FabricObjectWithId) => obj.id || '').filter(Boolean);
+    socketService.emitSelectionChange({
+      objects: selectedIds,
+      boardId
+    });
+  }, [user, boardId]);
+
+  const handleMouseMove = useCallback((e: fabric.TEvent<fabric.TPointerEvent>) => {
+    if (!user || !fabricCanvasRef.current) return;
+
+    const canvas = fabricCanvasRef.current;
+    const pointer = canvas.getPointer(e.e);
+    
+    // Handle panning
+    if (isPanning && lastPanPoint) {
+      const vpt = canvas.viewportTransform;
+      if (vpt) {
+        vpt[4] += pointer.x - lastPanPoint.x;
+        vpt[5] += pointer.y - lastPanPoint.y;
+        canvas.requestRenderAll();
+      }
+      setLastPanPoint({ x: pointer.x, y: pointer.y });
+      return;
+    }
+
+    // Emit cursor position for other users
+    socketService.emitCursorMove({
+      x: pointer.x,
+      y: pointer.y,
+      boardId
+    });
+  }, [user, boardId, isPanning, lastPanPoint]);
+
+  const handleMouseDown = useCallback((e: fabric.TEvent<fabric.TPointerEvent>) => {
+    if (!fabricCanvasRef.current) return;
+    
+    const canvas = fabricCanvasRef.current;
+    
+    // Handle panning with space key first
+    if (isSpacePressed || (e.e as MouseEvent).button === 1) {
+      e.e.preventDefault();
+      setIsPanning(true);
+      const pointer = canvas.getPointer(e.e);
+      setLastPanPoint({ x: pointer.x, y: pointer.y });
+      canvas.selection = false;
+      canvas.defaultCursor = 'grabbing';
+      canvas.hoverCursor = 'grabbing';
+      return false;
+    }
+    
+    setIsDrawing(true);
+  }, [isSpacePressed]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDrawing(false);
+    
+    if (isPanning && fabricCanvasRef.current) {
+      const canvas = fabricCanvasRef.current;
+      setIsPanning(false);
+      setLastPanPoint(null);
+      canvas.selection = currentTool === 'select';
+      canvas.defaultCursor = isSpacePressed ? 'grab' : 'default';
+      canvas.hoverCursor = 'move';
+    }
+  }, [isPanning, currentTool, isSpacePressed]);
+
+  const handleWheel = useCallback((e: fabric.TEvent<WheelEvent>) => {
+    if (!fabricCanvasRef.current) return;
+    
+    const canvas = fabricCanvasRef.current;
+    const delta = e.e.deltaY;
+    let currentZoom = canvas.getZoom();
+    
+    // Alt + scroll for zooming
+    if (isAltPressed || e.e.ctrlKey) {
+      e.e.preventDefault();
+      e.e.stopPropagation();
+      
+      currentZoom *= 0.999 ** delta;
+      if (currentZoom > 20) currentZoom = 20;
+      if (currentZoom < 0.01) currentZoom = 0.01;
+      
+      const pointer = canvas.getPointer(e.e);
+      canvas.zoomToPoint(new fabric.Point(pointer.x, pointer.y), currentZoom);
+      setZoom(currentZoom);
+      return false;
+    }
+    
+    return true;
+  }, [isAltPressed]);
 
   // Utility functions
   const handleZoomIn = useCallback(() => {
@@ -84,14 +250,32 @@ export const Canvas: React.FC<CanvasProps> = ({
   }, []);
 
   const handleUndo = useCallback(() => {
-    // TODO: Implement undo functionality with state management
-    console.log('Undo functionality to be implemented');
-  }, []);
+    if (!fabricCanvasRef.current || historyIndex <= 0) return;
+    
+    const canvas = fabricCanvasRef.current;
+    const newIndex = historyIndex - 1;
+    
+    if (canvasHistory[newIndex]) {
+      canvas.loadFromJSON(canvasHistory[newIndex], () => {
+        canvas.renderAll();
+      });
+      setHistoryIndex(newIndex);
+    }
+  }, [canvasHistory, historyIndex]);
 
   const handleRedo = useCallback(() => {
-    // TODO: Implement redo functionality with state management
-    console.log('Redo functionality to be implemented');
-  }, []);
+    if (!fabricCanvasRef.current || historyIndex >= canvasHistory.length - 1) return;
+    
+    const canvas = fabricCanvasRef.current;
+    const newIndex = historyIndex + 1;
+    
+    if (canvasHistory[newIndex]) {
+      canvas.loadFromJSON(canvasHistory[newIndex], () => {
+        canvas.renderAll();
+      });
+      setHistoryIndex(newIndex);
+    }
+  }, [canvasHistory, historyIndex]);
 
   const handleExport = useCallback(() => {
     if (!fabricCanvasRef.current) return;
@@ -133,7 +317,6 @@ export const Canvas: React.FC<CanvasProps> = ({
     };
     input.click();
   }, []);
-
   // Initialize Fabric.js canvas
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -142,7 +325,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       width,
       height,
       backgroundColor: '#ffffff',
-      selection: currentTool === 'select',
+      selection: false, // Will be set in tool change effect
       preserveObjectStacking: true
     });
 
@@ -153,111 +336,153 @@ export const Canvas: React.FC<CanvasProps> = ({
       try {
         canvas.loadFromJSON(currentBoard.content, () => {
           canvas.renderAll();
+          saveCanvasState(); // Save initial state
         });
       } catch (error) {
         console.warn('Failed to load canvas content:', error);
       }
-    }
+    } else {
+      // Save initial empty state
+      saveCanvasState();
+    }    // Initialize with default pen tool immediately
+    canvas.isDrawingMode = true;
+    canvas.selection = false;
+    canvas.defaultCursor = 'crosshair';
+    canvas.hoverCursor = 'crosshair';
+    canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+    canvas.freeDrawingBrush.color = brushColor;
+    canvas.freeDrawingBrush.width = brushSize;
 
-    // Setup drawing mode
-    canvas.isDrawingMode = currentTool === 'pen';
-    if (canvas.freeDrawingBrush) {
-      canvas.freeDrawingBrush.color = brushColor;
-      canvas.freeDrawingBrush.width = brushSize;
-    }    // Event handlers
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handlePathCreated = (e: any) => {
-      if (!e.path || !user) return;
-
-      const pathData = e.path.toObject() as unknown as Record<string, unknown>;
-      const pathObject = e.path as FabricObjectWithId;
-      pathObject.id = pathObject.id || Date.now().toString();
-      
-      emitCanvasAction({
-        type: 'add',
-        objectId: pathObject.id,
-        object: pathData,
-        boardId,
-        userId: user.id,
-        timestamp: new Date()
-      });
-
-      socketService.emitDrawEnd({
-        boardId,
-        object: pathData
-      });
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleObjectModified = (e: any) => {
-      if (!e.target || !user) return;
-
-      const objectData = e.target.toObject() as unknown as Record<string, unknown>;
-      const targetObject = e.target as FabricObjectWithId;
-      
-      emitCanvasAction({
-        type: 'update',
-        objectId: targetObject.id || Date.now().toString(),
-        object: objectData,
-        boardId,
-        userId: user.id,
-        timestamp: new Date()
-      });
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleSelectionCreated = (e: any) => {
-      if (!e.selected || !user) return;
-
-      const selectedIds = e.selected.map((obj: FabricObjectWithId) => obj.id || '').filter(Boolean);
-      socketService.emitSelectionChange({
-        objects: selectedIds,
-        boardId
-      });
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleMouseMove = (e: any) => {
-      if (!user) return;
-
-      const pointer = canvas.getPointer(e.e);
-      socketService.emitCursorMove({
-        x: pointer.x,
-        y: pointer.y,
-        boardId
-      });
-    };
-
-    canvas.on('path:created', handlePathCreated);
-    canvas.on('object:modified', handleObjectModified);
-    canvas.on('selection:created', handleSelectionCreated);
-    canvas.on('mouse:move', handleMouseMove);
+    // Mark canvas as initialized to trigger tool configuration
+    setCanvasInitialized(true);
 
     return () => {
       canvas.dispose();
-      fabricCanvasRef.current = null;
     };
-  }, [currentBoard?.content, width, height, brushColor, brushSize, currentTool, boardId, user, emitCanvasAction]);
+  }, [currentBoard?.content, width, height, saveCanvasState, brushColor, brushSize]);
 
-  // Update canvas settings when tool changes
+  // Update event handlers when dependencies change
   useEffect(() => {
     if (!fabricCanvasRef.current) return;
 
     const canvas = fabricCanvasRef.current;
-    canvas.isDrawingMode = currentTool === 'pen';
-    canvas.selection = currentTool === 'select';
+
+    // Event handlers
+    canvas.on('path:created', handlePathCreated);
+    canvas.on('object:modified', handleObjectModified);
+    canvas.on('selection:created', handleSelectionCreated);
+    canvas.on('mouse:move', handleMouseMove);
+    canvas.on('mouse:down', handleMouseDown);
+    canvas.on('mouse:up', handleMouseUp);
+    canvas.on('mouse:wheel', handleWheel);
+
+    return () => {
+      canvas.off('path:created', handlePathCreated);
+      canvas.off('object:modified', handleObjectModified);
+      canvas.off('selection:created', handleSelectionCreated);
+      canvas.off('mouse:move', handleMouseMove);
+      canvas.off('mouse:down', handleMouseDown);
+      canvas.off('mouse:up', handleMouseUp);
+      canvas.off('mouse:wheel', handleWheel);
+    };
+  }, [
+    handlePathCreated,
+    handleObjectModified,
+    handleSelectionCreated,
+    handleMouseMove,
+    handleMouseDown,
+    handleMouseUp,
+    handleWheel
+  ]);  // Update canvas settings when tool changes
+  useEffect(() => {
+    if (!fabricCanvasRef.current || !canvasInitialized) return;
+
+    const canvas = fabricCanvasRef.current;
     
-    if (currentTool === 'pen' && canvas.freeDrawingBrush) {
-      canvas.freeDrawingBrush.color = brushColor;
-      canvas.freeDrawingBrush.width = brushSize;
+    // Reset any active drawing state when changing tools
+    setIsDrawing(false);
+    setIsPanning(false);
+    setLastPanPoint(null);
+    
+    // Disable all modes first
+    canvas.isDrawingMode = false;
+    canvas.selection = false;
+    
+    // Configure tool-specific settings
+    switch (currentTool) {
+      case 'pen':
+        canvas.isDrawingMode = true;
+        canvas.selection = false;
+        canvas.defaultCursor = 'crosshair';
+        canvas.hoverCursor = 'crosshair';
+        
+        // Set brush type and properties
+        switch (brushType) {
+          case 'circle':
+            canvas.freeDrawingBrush = new fabric.CircleBrush(canvas);
+            break;
+          case 'spray':
+            canvas.freeDrawingBrush = new fabric.SprayBrush(canvas);
+            break;
+          default:
+            canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+        }
+        
+        canvas.freeDrawingBrush.color = brushColor;
+        canvas.freeDrawingBrush.width = brushSize;
+        break;
+
+      case 'eraser': {
+        // For eraser, use a white brush with destination-out composite operation
+        canvas.isDrawingMode = true;
+        canvas.selection = false;
+        canvas.defaultCursor = 'crosshair';
+        canvas.hoverCursor = 'crosshair';
+        
+        // Create custom eraser brush
+        const eraserBrush = new fabric.PencilBrush(canvas);
+        eraserBrush.color = '#FFFFFF';
+        eraserBrush.width = brushSize * 2;
+        
+        // Override the brush's _render method to use destination-out
+        const originalRender = eraserBrush._render.bind(eraserBrush);
+        eraserBrush._render = function() {
+          if (canvas.contextTop) {
+            canvas.contextTop.globalCompositeOperation = 'destination-out';
+          }
+          originalRender();
+          if (canvas.contextTop) {
+            canvas.contextTop.globalCompositeOperation = 'source-over';
+          }
+        };
+        
+        canvas.freeDrawingBrush = eraserBrush;
+        break;
+      }
+        
+      case 'select':
+        canvas.isDrawingMode = false;
+        canvas.selection = true;
+        canvas.defaultCursor = 'default';
+        canvas.hoverCursor = 'move';
+        break;
+        
+      default:
+        canvas.isDrawingMode = false;
+        canvas.selection = true;
+        canvas.defaultCursor = 'default';
+        canvas.hoverCursor = 'pointer';
     }
-  }, [currentTool, brushColor, brushSize]);
+    
+    canvas.renderAll();
+  }, [currentTool, brushColor, brushSize, brushType, canvasInitialized]);
 
   // Socket event handlers
   useEffect(() => {
     if (!fabricCanvasRef.current) return;
 
-    const canvas = fabricCanvasRef.current;    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const canvas = fabricCanvasRef.current;
+
     const handleCanvasAction = (action: any) => {
       if (!canvas) return;
 
@@ -271,7 +496,6 @@ export const Canvas: React.FC<CanvasProps> = ({
                   canvas.add(object);
                   canvas.renderAll();
                 }
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
               } as any);
             } catch (error) {
               console.warn('Failed to add object:', error);
@@ -301,7 +525,8 @@ export const Canvas: React.FC<CanvasProps> = ({
         default:
           break;
       }
-    };    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    };
+
     const handleDrawEnd = (data: any) => {
       if (data.object) {
         try {
@@ -310,7 +535,6 @@ export const Canvas: React.FC<CanvasProps> = ({
               canvas.add(object);
               canvas.renderAll();
             }
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any);
         } catch (error) {
           console.warn('Failed to add draw object:', error);
@@ -338,6 +562,18 @@ export const Canvas: React.FC<CanvasProps> = ({
       if ((e.target as HTMLElement)?.tagName === 'INPUT' || 
           (e.target as HTMLElement)?.tagName === 'TEXTAREA') {
         return;
+      }
+
+      // Handle space and alt keys for pan/zoom
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        setIsSpacePressed(true);
+        if (!isPanning) {
+          canvas.defaultCursor = 'grab';
+        }
+      }
+      if (e.altKey) {
+        setIsAltPressed(true);
       }
 
       switch (e.key.toLowerCase()) {
@@ -446,9 +682,27 @@ export const Canvas: React.FC<CanvasProps> = ({
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpacePressed(false);
+        setIsPanning(false);
+        if (fabricCanvasRef.current && !isPanning) {
+          fabricCanvasRef.current.defaultCursor = 'default';
+        }
+      }
+      if (!e.altKey) {
+        setIsAltPressed(false);
+      }
+    };
+
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [boardId, user, emitCanvasAction, handleUndo, handleRedo, handleZoomIn, handleZoomOut, handleZoomReset]);
+    document.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [boardId, user, emitCanvasAction, handleUndo, handleRedo, handleZoomIn, handleZoomOut, handleZoomReset, isPanning]);
 
   // Tool functions
   const addShape = (shapeType: 'rectangle' | 'circle' | 'triangle') => {
@@ -466,7 +720,8 @@ export const Canvas: React.FC<CanvasProps> = ({
           height: 100,
           fill: brushColor,
           stroke: '#000',
-          strokeWidth: 1
+          strokeWidth: 1,
+          opacity
         });
         break;
       case 'circle':
@@ -476,7 +731,8 @@ export const Canvas: React.FC<CanvasProps> = ({
           radius: 50,
           fill: brushColor,
           stroke: '#000',
-          strokeWidth: 1
+          strokeWidth: 1,
+          opacity
         });
         break;
       case 'triangle':
@@ -487,7 +743,8 @@ export const Canvas: React.FC<CanvasProps> = ({
           height: 100,
           fill: brushColor,
           stroke: '#000',
-          strokeWidth: 1
+          strokeWidth: 1,
+          opacity
         });
         break;
       default:
@@ -496,6 +753,7 @@ export const Canvas: React.FC<CanvasProps> = ({
 
     (shape as FabricObjectWithId).id = Date.now().toString();
     canvas.add(shape);
+    saveCanvasState();
 
     emitCanvasAction({
       type: 'add',
@@ -515,11 +773,13 @@ export const Canvas: React.FC<CanvasProps> = ({
       left: 100,
       top: 100,
       fontSize: 20,
-      fill: brushColor
+      fill: brushColor,
+      opacity
     });
 
     (text as FabricObjectWithId).id = Date.now().toString();
     canvas.add(text);
+    saveCanvasState();
 
     emitCanvasAction({
       type: 'add',
@@ -536,6 +796,7 @@ export const Canvas: React.FC<CanvasProps> = ({
 
     const canvas = fabricCanvasRef.current;
     canvas.clear();
+    saveCanvasState();
 
     emitCanvasAction({
       type: 'clear',
@@ -545,8 +806,71 @@ export const Canvas: React.FC<CanvasProps> = ({
     });
   };
 
+  const addLine = () => {
+    if (!fabricCanvasRef.current || !user) return;
+
+    const canvas = fabricCanvasRef.current;
+    const line = new fabric.Line([50, 100, 200, 100], {
+      stroke: brushColor,
+      strokeWidth: brushSize,
+      opacity
+    });
+
+    (line as FabricObjectWithId).id = Date.now().toString();
+    canvas.add(line);
+    saveCanvasState();
+
+    emitCanvasAction({
+      type: 'add',
+      objectId: (line as FabricObjectWithId).id!,
+      object: line.toObject() as unknown as Record<string, unknown>,
+      boardId,
+      userId: user.id,
+      timestamp: new Date()
+    });
+  };
+
+  const addArrow = () => {
+    if (!fabricCanvasRef.current || !user) return;
+
+    const canvas = fabricCanvasRef.current;
+    
+    // Create arrow using path
+    const arrowPath = 'M 0 0 L 80 0 M 70 -5 L 80 0 L 70 5';
+    const arrow = new fabric.Path(arrowPath, {
+      left: 100,
+      top: 100,
+      stroke: brushColor,
+      strokeWidth: brushSize,
+      fill: '',
+      opacity
+    });
+
+    (arrow as FabricObjectWithId).id = Date.now().toString();
+    canvas.add(arrow);
+    saveCanvasState();
+
+    emitCanvasAction({
+      type: 'add',
+      objectId: (arrow as FabricObjectWithId).id!,
+      object: arrow.toObject() as unknown as Record<string, unknown>,
+      boardId,
+      userId: user.id,
+      timestamp: new Date()
+    });
+  };
+
+  const getCanvasClasses = () => {
+    const classes = ['canvas-container'];
+    if (isDrawing) classes.push('drawing');
+    if (isPanning) classes.push('panning');
+    if (isSpacePressed) classes.push('space-pressed');
+    classes.push(`tool-${currentTool}`);
+    return classes.join(' ');
+  };
+
   return (
-    <div className="canvas-container">
+    <div className={getCanvasClasses()}>
       {/* Canvas */}
       <canvas ref={canvasRef} />
       
@@ -576,7 +900,7 @@ export const Canvas: React.FC<CanvasProps> = ({
             <MousePointer size={20} />
           </button>
         </div>
-        
+
         {/* Color and Brush Settings */}
         <div className="tool-group">
           <div className="color-picker-container">
@@ -623,8 +947,35 @@ export const Canvas: React.FC<CanvasProps> = ({
             />
             <span className="brush-size-value">{brushSize}px</span>
           </div>
+          
+          <div className="brush-type-container">
+            <label className="brush-type-label">Brush</label>
+            <select
+              value={brushType}
+              onChange={(e) => setBrushType(e.target.value as 'pencil' | 'circle' | 'spray')}
+              className="brush-type-select"
+            >
+              <option value="pencil">Pencil</option>
+              <option value="circle">Circle</option>
+              <option value="spray">Spray</option>
+            </select>
+          </div>
+          
+          <div className="opacity-container">
+            <label className="opacity-label">Opacity</label>
+            <input
+              type="range"
+              min="0.1"
+              max="1"
+              step="0.1"
+              value={opacity}
+              onChange={(e) => setOpacity(Number(e.target.value))}
+              className="opacity-slider"
+            />
+            <span className="opacity-value">{Math.round(opacity * 100)}%</span>
+          </div>
         </div>
-        
+
         {/* Shape Tools */}
         <div className="tool-group">
           <button 
@@ -647,6 +998,20 @@ export const Canvas: React.FC<CanvasProps> = ({
             title="Add Triangle"
           >
             <Triangle size={20} />
+          </button>
+          <button 
+            onClick={addLine} 
+            className="tool-btn"
+            title="Add Line"
+          >
+            <Minus size={20} />
+          </button>
+          <button 
+            onClick={addArrow} 
+            className="tool-btn"
+            title="Add Arrow"
+          >
+            <ArrowRight size={20} />
           </button>
           <button 
             onClick={addText} 
@@ -725,6 +1090,11 @@ export const Canvas: React.FC<CanvasProps> = ({
             <Download size={20} />
           </button>
         </div>
+      </div>
+      
+      {/* Pan and Zoom Instructions */}
+      <div className="canvas-instructions">
+        <div><kbd>Space</kbd> + drag to pan • <kbd>Alt</kbd> + scroll to zoom</div>
       </div>
     </div>
   );
