@@ -365,6 +365,39 @@
     font-size: 11px;
 }
 
+/* Brush size indicator for Alt+right-drag */
+.brush-size-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    z-index: 100;
+    pointer-events: none;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    border: 2px solid #3b82f6;
+    backdrop-filter: blur(4px);
+}
+
+.brush-size-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    white-space: nowrap;
+}
+
+.brush-size-preview {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    min-width: 8px;
+    min-height: 8px;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .canvas-toolbar {

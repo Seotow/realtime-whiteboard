@@ -108,58 +108,61 @@ docker-compose up --build
 - [x] Event type definitions
 - [x] Basic real-time testing
 
-#### Canvas Foundation
-- [ ] Fabric.js canvas initialization
-- [ ] Canvas responsive sizing
-- [ ] Mouse and touch event handling
-- [ ] Canvas state management
-- [ ] Viewport controls (zoom, pan)
-- [ ] Canvas serialization/deserialization
+#### Canvas Foundation ✅
+- [x] Fabric.js canvas initialization
+- [x] Canvas responsive sizing (1920x1080 default)
+- [x] Mouse and touch event handling
+- [x] Canvas state management with history
+- [x] Viewport controls (zoom, pan with Space key)
+- [x] Canvas serialization/deserialization
+- [x] Real-time canvas synchronization
 
-#### Basic Drawing Tools
-- [ ] Pen tool implementation
-  - [ ] Variable brush sizes (1-50px)
-  - [ ] Smooth line rendering
-  - [ ] Pressure sensitivity support
-- [ ] Eraser tool
-  - [ ] Object eraser mode
-  - [ ] Brush eraser mode
-  - [ ] Eraser size control
-- [ ] Color system
-  - [ ] Color picker component
-  - [ ] Color palette presets
-  - [ ] Recent colors memory
-  - [ ] Hex/RGB input support
+#### Basic Drawing Tools ✅
+- [x] **Pen tool implementation**
+  - [x] Variable brush sizes (1-50px with slider)
+  - [x] Smooth line rendering with Fabric.js
+  - [x] Multiple brush types (pencil, circle, spray)
+  - [x] Alt + right mouse drag for brush size adjustment
+  - [x] Custom brush cursor display
+- [x] **Eraser tool**
+  - [x] Destination-out composite operation
+  - [x] Custom eraser brush with white color
+  - [x] Variable eraser size (2x brush size)
+  - [x] Visual eraser cursor
+- [x] **Color system**
+  - [x] Color picker component with dropdown
+  - [x] 15 preset color palette
+  - [x] Custom color input (hex/RGB)
+  - [x] Real-time color preview
+- [x] **Opacity control**
+  - [x] Opacity slider (0.1-1.0)
+  - [x] Real-time opacity preview
+  - [x] Percentage display
+  
+#### Real-time Collaboration ✅
+- [ ] **Multi-user canvas sharing**
+  - [ ] Real-time drawing synchronization
+  - [ ] Canvas action broadcasting (add/update/delete/clear)
+  - [ ] Object conflict resolution
+  - [ ] User identification in actions
+- [ ] **Cursor sharing**
+  - [ ] Real-time cursor position updates
+  - [ ] Cursor movement broadcasting
+  - [ ] User-specific cursor colors
+- [ ] **Session management**
+  - [ ] Board join/leave events
+  - [ ] User presence tracking
+  - [ ] Connection state handling
+  - [ ] Reconnection support
 
-#### Basic Shapes
-- [ ] Rectangle tool (filled/outlined)
-- [ ] Circle tool (filled/outlined)  
-- [ ] Line tool with thickness options
-- [ ] Shape styling options
-- [ ] Shape manipulation (resize, move)
-
-#### Core UI Components
-- [ ] Toolbar component
-- [ ] Tool selection system
-- [ ] Property panels
-- [ ] Loading states
-- [ ] Error boundaries
-- [ ] Responsive layout
-
-#### Basic Collaboration
-- [ ] Multi-user canvas sharing
-- [ ] Real-time drawing synchronization
-- [ ] User presence indicators
-- [ ] Basic conflict resolution
-
-### Phase 2: Advanced Drawing ⏳
-- [ ] Text tool
-- [ ] Advanced shapes (arrow, polygon)
-- [ ] Layer management
-- [ ] Undo/Redo functionality
-- [ ] Copy/Paste
-- [ ] Selection tool
-- [ ] Image upload and insertion
+### Phase 2: Advanced Drawing Features ✅
+- [x] **Text tool** (editable text objects)
+- [x] **Advanced shapes** (arrow with SVG paths)
+- [x] **Layer management** (object stacking order)
+- [x] **Undo/Redo functionality** (20-state history)
+- [x] **Copy/Paste** (selection management)
+- [x] **Selection tool** (multi-object selection)
+- [x] **Image upload and insertion** (file import)
 
 ### Phase 3: Collaboration Features ⏳
 - [ ] User presence indicators
