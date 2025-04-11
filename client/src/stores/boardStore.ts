@@ -4,6 +4,7 @@ import type {
     Board,
     CreateBoardData,
     UpdateBoardData,
+    FabricCanvasData,
 } from "../services/boardApi";
 import { boardApi } from "../services/boardApi";
 import type { BoardUser, CanvasAction } from "../services/socketService";
@@ -50,6 +51,12 @@ export interface BoardState {
     joinBoard: (boardId: string) => void;
     leaveBoard: (boardId: string) => void;
     emitCanvasAction: (action: CanvasAction) => void;
+    // Canvas save/load actions
+    saveCanvasContent: (
+        boardId: string,
+        content: FabricCanvasData,
+        settings?: Record<string, unknown>
+    ) => Promise<void>;
 
     // State updates
     setCurrentBoard: (board: Board | null) => void;
@@ -213,6 +220,34 @@ export const useBoardStore = create<BoardState>()(
 
         emitCanvasAction: (action) => {
             socketService.emitCanvasAction(action);
+        },
+
+        // Canvas save/load operations
+        saveCanvasContent: async (boardId, content, settings) => {
+            set({ isLoading: true, error: null });
+            try {
+                const result = await boardApi.saveCanvasContent(
+                    boardId,
+                    content,
+                    settings
+                );
+                set((state) => ({
+                    currentBoard:
+                        state.currentBoard?.id === boardId
+                            ? result.board
+                            : state.currentBoard,
+                    isLoading: false,
+                }));
+            } catch (error) {
+                set({
+                    error:
+                        error instanceof Error
+                            ? error.message
+                            : "Failed to save canvas",
+                    isLoading: false,
+                });
+                throw error;
+            }
         },
 
         // State updates

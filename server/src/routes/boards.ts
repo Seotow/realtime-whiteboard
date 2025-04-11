@@ -6,7 +6,8 @@ import {
   createBoardSchema, 
   updateBoardSchema, 
   shareBoardSchema, 
-  boardQuerySchema 
+  boardQuerySchema,
+  saveCanvasSchema
 } from '../schemas/boardSchemas';
 import { z } from 'zod';
 
@@ -153,6 +154,20 @@ boardRoutes.get('/:id/activities', async (req, res, next) => {
     
     const activities = await BoardService.getBoardActivities(id, userId, limit);
     res.json(activities);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Save canvas content
+boardRoutes.post('/:id/save', validateInput(z.object({ body: saveCanvasSchema })), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.userId;
+    const { content, settings } = req.body;
+    
+    const result = await BoardService.saveCanvasContent(id, userId, content, settings);
+    res.json(result);
   } catch (error) {
     next(error);
   }

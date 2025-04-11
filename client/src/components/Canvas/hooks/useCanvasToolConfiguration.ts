@@ -9,6 +9,7 @@ interface UseCanvasToolConfigurationProps {
     brushColor: string;
     brushSize: number;
     brushType: BrushType;
+    opacity: number;
     isSpacePressed: boolean;
     isPanning: boolean;
     isAdjustingBrushSize: boolean;
@@ -25,6 +26,7 @@ export const useCanvasToolConfiguration = ({
     brushColor,
     brushSize,
     brushType,
+    opacity,
     isSpacePressed,
     isPanning,
     isAdjustingBrushSize,
@@ -48,8 +50,7 @@ export const useCanvasToolConfiguration = ({
         canvas.selection = false;
 
         // Configure tool-specific settings
-        switch (currentTool) {
-            case "pen":
+        switch (currentTool) {            case "pen":
                 canvas.isDrawingMode = !isSpacePressed && !isPanning && !isAdjustingBrushSize;
                 canvas.selection = false;
 
@@ -63,10 +64,52 @@ export const useCanvasToolConfiguration = ({
                         break;
                     default:
                         canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+                }                canvas.freeDrawingBrush.color = brushColor;
+                canvas.freeDrawingBrush.width = brushSize;                // Apply opacity to the brush by converting color to rgba
+                if (canvas.freeDrawingBrush && opacity < 1) {
+                    const hexToRgba = (hex: string, alpha: number) => {
+                        const r = parseInt(hex.slice(1, 3), 16);
+                        const g = parseInt(hex.slice(3, 5), 16);
+                        const b = parseInt(hex.slice(5, 7), 16);
+                        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                    };
+                    
+                    if (brushColor.startsWith('#')) {
+                        canvas.freeDrawingBrush.color = hexToRgba(brushColor, opacity);
+                    } else if (brushColor.startsWith('rgb(')) {
+                        // Convert rgb to rgba
+                        const rgbaColor = brushColor.replace('rgb(', 'rgba(').replace(')', `, ${opacity})`);
+                        canvas.freeDrawingBrush.color = rgbaColor;
+                    } else if (brushColor.startsWith('rgba(')) {
+                        // Update existing rgba opacity
+                        const rgbaMatch = brushColor.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([^)]+)\)/);
+                        if (rgbaMatch) {
+                            canvas.freeDrawingBrush.color = `rgba(${rgbaMatch[1]}, ${rgbaMatch[2]}, ${rgbaMatch[3]}, ${opacity})`;
+                        }
+                    }
                 }
-
-                canvas.freeDrawingBrush.color = brushColor;
-                canvas.freeDrawingBrush.width = brushSize;
+                
+                // Ensure pen tool is immediately ready for drawing
+                if (canvas.isDrawingMode) {
+                    canvas.defaultCursor = "crosshair";
+                    canvas.hoverCursor = "crosshair";
+                    canvas.freeDrawingCursor = "crosshair";
+                    canvas.setCursor("crosshair");
+                    
+                    // Simulate activation
+                    const canvasElement = canvas.getElement();
+                    if (canvasElement) {
+                        const rect = canvasElement.getBoundingClientRect();
+                        if (rect.width > 0 && rect.height > 0) {
+                            const event = new MouseEvent('mousemove', {
+                                clientX: rect.left + rect.width / 2,
+                                clientY: rect.top + rect.height / 2,
+                                bubbles: true
+                            });
+                            canvasElement.dispatchEvent(event);
+                        }
+                    }
+                }
                 break;
 
             case "eraser": {
@@ -110,13 +153,13 @@ export const useCanvasToolConfiguration = ({
 
         // Update cursor after tool configuration
         updateCursor();
-        canvas.renderAll();
-    }, [
+        canvas.renderAll();    }, [
         fabricCanvasRef,
         currentTool,
         brushColor,
         brushSize,
         brushType,
+        opacity,
         canvasInitialized,
         isSpacePressed,
         isPanning,

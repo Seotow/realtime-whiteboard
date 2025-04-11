@@ -225,6 +225,25 @@ class BoardApiService {  private getAuthHeaders() {
 
     return this.handleResponse<BoardActivity[]>(response);
   }
+
+  // Save canvas content
+  async saveCanvasContent(boardId: string, content: FabricCanvasData, settings?: Record<string, unknown>): Promise<{
+    message: string;
+    board: Board;
+    timestamp: string;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/api/boards/${boardId}/save`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ content, settings })
+    });
+
+    return this.handleResponse<{
+      message: string;
+      board: Board;
+      timestamp: string;
+    }>(response);
+  }
 }
 
 export const boardApi = new BoardApiService();

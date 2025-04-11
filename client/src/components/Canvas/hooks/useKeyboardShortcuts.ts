@@ -12,6 +12,7 @@ interface UseKeyboardShortcutsProps {
     handleZoomIn: () => void;
     handleZoomOut: () => void;
     handleZoomReset: () => void;
+    handleSave?: () => void;
     isPanning: boolean;
     isAltPressed: boolean;
     currentTool: ToolType;
@@ -31,6 +32,7 @@ export const useKeyboardShortcuts = ({
     handleZoomIn,
     handleZoomOut,
     handleZoomReset,
+    handleSave,
     isPanning,
     isAltPressed,
     currentTool,
@@ -169,6 +171,13 @@ export const useKeyboardShortcuts = ({
                     }
                     break;
                 }
+                case "s": {
+                    if ((e.ctrlKey || e.metaKey) && handleSave) {
+                        e.preventDefault();
+                        handleSave();
+                    }
+                    break;
+                }
                 default:
                     break;
             }
@@ -212,8 +221,7 @@ export const useKeyboardShortcuts = ({
             document.removeEventListener("keydown", handleKeyDown);
             document.removeEventListener("keyup", handleKeyUp);
             document.removeEventListener("contextmenu", handleContextMenu);
-        };
-    }, [
+        };    }, [
         fabricCanvasRef,
         boardId,
         user,
@@ -223,6 +231,7 @@ export const useKeyboardShortcuts = ({
         handleZoomIn,
         handleZoomOut,
         handleZoomReset,
+        handleSave,
         isPanning,
         isAltPressed,
         currentTool,

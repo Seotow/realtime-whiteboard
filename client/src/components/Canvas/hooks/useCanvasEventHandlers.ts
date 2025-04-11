@@ -53,8 +53,7 @@ export const useCanvasEventHandlers = ({
     currentTool,
     isAltPressed,
     updateCursor,
-}: UseCanvasEventHandlersProps) => {
-    const handlePathCreated = useCallback(
+}: UseCanvasEventHandlersProps) => {    const handlePathCreated = useCallback(
         (e: PathCreatedEvent, fabricCanvas: fabric.Canvas) => {
             if (!e.path || !user) return;
 
@@ -68,8 +67,14 @@ export const useCanvasEventHandlers = ({
             const pathObject = e.path as FabricObjectWithId;
             pathObject.id = pathObject.id || Date.now().toString();
 
+            console.log('Path created, setting isDrawing to false');
             setIsDrawing(false);
-            saveCanvasState();
+
+            // Delay the canvas state save to avoid race conditions
+            setTimeout(() => {
+                console.log('Saving canvas state after path creation');
+                saveCanvasState();
+            }, 100);
 
             emitCanvasAction({
                 type: "add",

@@ -320,4 +320,52 @@ export class BoardService {  // Get user's boards with pagination and search
       take: limit
     });
   }
+
+  // Save canvas content
+  static async saveCanvasContent(boardId: string, userId: string, content: any, settings?: any) {
+    // First check if user has edit permission
+    const board = await this.getBoardById(boardId, userId);
+    
+    const hasEditPermission = board.userId === userId || 
+                             board.collaborators.some(c => c.userId === userId && ['editor', 'admin'].includes(c.role));
+
+    if (!hasEditPermission) {
+      throw new Error('Edit permission denied');
+    }    // Validate and serialize canvas content
+    let processedContent;
+    try {
+      // Store as JSON object in the database
+      processedContent = typeof content === 'string' ? JSON.parse(content) : content;
+    } catch (error) {
+      throw new Error('Invalid canvas content format');
+    }
+
+    const updatedBoard = await prisma.board.update({
+      where: { id: boardId },
+      data: {
+        content: processedContent,
+        settings: settings || undefined,
+        updatedAt: new Date()
+      },
+      include: {
+        user: {
+          select: { id: true, username: true, email: true }
+        },
+        collaborators: {
+          select: { userId: true, role: true, addedAt: true }
+        }
+      }
+    });
+
+    // Log activity
+    await this.logActivity(boardId, userId, 'canvas_saved', { 
+      timestamp: new Date().toISOString()
+    });
+
+    return {
+      message: 'Canvas saved successfully',
+      board: updatedBoard,
+      timestamp: new Date().toISOString()
+    };
+  }
 }

@@ -8,6 +8,8 @@ import type { CanvasProps, ToolType, BrushType } from "./types/canvas";
 // Components
 import { CanvasToolbar } from "./components/CanvasToolbar";
 import { CanvasInstructions } from "./components/CanvasInstructions";
+import { SaveStatus } from "./components/SaveStatus";
+import { SaveToast } from "./components/SaveToast";
 
 // Hooks
 import { useCanvasInitialization } from "./hooks/useCanvasInitialization";
@@ -19,6 +21,8 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useCanvasActions } from "./hooks/useCanvasActions";
 import { useSocketEvents } from "./hooks/useSocketEvents";
 import { useCanvasToolConfiguration } from "./hooks/useCanvasToolConfiguration";
+import { useCanvasAutoSave } from "./hooks/useCanvasAutoSave";
+import { useCanvasFocus } from "./hooks/useCanvasFocus";
 
 import "../../styles/canvas.css";
 
@@ -51,12 +55,70 @@ export const Canvas: React.FC<CanvasProps> = ({
 
     // Store hooks
     const { currentBoard, emitCanvasAction } = useBoardStore();
-    const { user } = useAuthStore();
-
-    // Canvas history hook
+    const { user } = useAuthStore();    // Canvas history hook
     const { saveCanvasState, handleUndo, handleRedo } = useCanvasHistory({
         fabricCanvasRef,
-    });
+    });    // Auto-save functionality
+    const { saveCanvas, isSaving, lastSaveTime, showSaveToast, setShowSaveToast, isSavingContentRef } = useCanvasAutoSave({
+        fabricCanvasRef,
+        boardId,
+        isCanvasInitialized: canvasInitialized,
+        isDrawing,
+    });    // Canvas focus management
+    const { focusCanvas } = useCanvasFocus({
+        fabricCanvasRef,
+        isCanvasInitialized: canvasInitialized,
+    });    // Additional focus management for specific scenarios
+    React.useEffect(() => {
+        // Focus canvas when component mounts and becomes ready
+        if (canvasInitialized && canvasRef.current && fabricCanvasRef.current) {
+            const timer = setTimeout(() => {
+                canvasRef.current?.focus();
+                focusCanvas();
+                
+                // Additional activation step - ensure drawing mode is really active
+                const canvas = fabricCanvasRef.current;
+                if (canvas && canvas.isDrawingMode) {
+                    canvas.setCursor(canvas.freeDrawingCursor || 'crosshair');
+                    
+                    // Force the canvas to respond to mouse events immediately
+                    const canvasElement = canvas.getElement();
+                    if (canvasElement) {
+                        const rect = canvasElement.getBoundingClientRect();
+                        const event = new MouseEvent('mousemove', {
+                            clientX: rect.left + rect.width / 2,
+                            clientY: rect.top + rect.height / 2,
+                            bubbles: true
+                        });
+                        canvasElement.dispatchEvent(event);
+                    }
+                }
+                
+                console.log('Canvas focused and activated on component ready');
+            }, 100);
+            
+            return () => clearTimeout(timer);
+        }
+    }, [canvasInitialized, focusCanvas]);
+
+    // Focus canvas when page becomes visible (user switches back to tab)
+    React.useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (!document.hidden && canvasInitialized) {
+                setTimeout(() => {
+                    canvasRef.current?.focus();
+                    focusCanvas();
+                    console.log('Canvas focused on page visibility change');
+                }, 100);
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [canvasInitialized, focusCanvas]);
 
     // Initialize canvas
     useCanvasInitialization(
@@ -64,9 +126,11 @@ export const Canvas: React.FC<CanvasProps> = ({
         fabricCanvasRef,
         width,
         height,
-        typeof currentBoard?.content === 'string' ? currentBoard.content : undefined,
+        currentBoard?.content,
         saveCanvasState,
-        setCanvasInitialized
+        setCanvasInitialized,
+        isDrawing,
+        isSavingContentRef
     );
 
     const { updateCursor } = useCanvasCursor({
@@ -118,18 +182,15 @@ export const Canvas: React.FC<CanvasProps> = ({
             currentBoard,
             emitCanvasAction,
             saveCanvasState,
-        });
-
-    // Effect hooks
-    useSocketEvents({ fabricCanvasRef });
-
-    useCanvasToolConfiguration({
+        });    // Effect hooks
+    useSocketEvents({ fabricCanvasRef });    useCanvasToolConfiguration({
         fabricCanvasRef,
         canvasInitialized,
         currentTool,
         brushColor,
         brushSize,
         brushType,
+        opacity,
         isSpacePressed,
         isPanning,
         isAdjustingBrushSize,
@@ -137,9 +198,7 @@ export const Canvas: React.FC<CanvasProps> = ({
         setIsDrawing,
         setIsPanning,
         setLastPanPoint,
-    });
-
-    useKeyboardShortcuts({
+    });useKeyboardShortcuts({
         fabricCanvasRef,
         boardId,
         user,
@@ -149,6 +208,7 @@ export const Canvas: React.FC<CanvasProps> = ({
         handleZoomIn,
         handleZoomOut,
         handleZoomReset,
+        handleSave: saveCanvas,
         isPanning,
         isAltPressed,
         currentTool,
@@ -202,11 +262,49 @@ export const Canvas: React.FC<CanvasProps> = ({
         handleMouseDown,
         handleMouseUp,
         handleWheel,
-    ]);
+    ]);    return (
+        <div 
+            className={`relative ${getCanvasClasses(isDrawing, isPanning, isSpacePressed, isAdjustingBrushSize, currentTool)}`}
+            onMouseEnter={() => {
+                if (canvasInitialized && canvasRef.current) {
+                    canvasRef.current.focus();
+                    focusCanvas();
+                }
+            }}
+        >
+            <canvas 
+                ref={canvasRef} 
+                tabIndex={0}
+                style={{ outline: 'none' }}
+                onFocus={() => {
+                    console.log('Canvas focused via onFocus event');
+                    focusCanvas();
+                }}
+                onMouseEnter={() => {
+                    if (canvasInitialized) {
+                        canvasRef.current?.focus();
+                        focusCanvas();
+                    }
+                }}
+                onMouseDown={() => {
+                    if (canvasInitialized) {
+                        canvasRef.current?.focus();
+                        focusCanvas();
+                    }
+                }}
+            />{/* Save Status Indicator */}
+            <SaveStatus
+                isSaving={isSaving}
+                lastSaveTime={lastSaveTime}
+                className="absolute top-4 right-4 bg-white/95 backdrop-blur-md px-4 py-2 rounded-lg shadow-lg border border-gray-200/50 z-50 transition-all duration-300"
+            />
 
-    return (
-        <div className={getCanvasClasses(isDrawing, isPanning, isSpacePressed, isAdjustingBrushSize, currentTool)}>
-            <canvas ref={canvasRef} />
+            {/* Save Success Toast */}
+            <SaveToast
+                show={showSaveToast}
+                onHide={() => setShowSaveToast(false)}
+                message="Canvas auto-saved"
+            />
             
             <CanvasToolbar
                 currentTool={currentTool}
@@ -234,9 +332,8 @@ export const Canvas: React.FC<CanvasProps> = ({
                 handleZoomReset={handleZoomReset}
                 handleImport={handleImport}
                 handleExport={handleExport}
-            />
-
-            <CanvasInstructions
+                handleSave={saveCanvas}
+            />            <CanvasInstructions
                 isAdjustingBrushSize={isAdjustingBrushSize}
                 currentTool={currentTool}
                 brushSize={brushSize}

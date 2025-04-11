@@ -38,7 +38,14 @@ export const boardQuerySchema = z.object({
   )
 });
 
+// Canvas save schema
+export const saveCanvasSchema = z.object({
+  content: z.any(), // Fabric.js JSON content
+  settings: z.any().optional() // Optional canvas settings (zoom, background, etc.)
+});
+
 export type CreateBoardRequest = z.infer<typeof createBoardSchema>;
 export type UpdateBoardRequest = z.infer<typeof updateBoardSchema>;
 export type ShareBoardRequest = z.infer<typeof shareBoardSchema>;
 export type BoardQueryRequest = z.infer<typeof boardQuerySchema>;
+export type SaveCanvasRequest = z.infer<typeof saveCanvasSchema>;

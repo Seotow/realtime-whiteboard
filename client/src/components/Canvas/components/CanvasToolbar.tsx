@@ -17,6 +17,7 @@ import {
     Home,
     Minus,
     ArrowRight,
+    Save,
 } from "lucide-react";
 import { PRESET_COLORS } from "../constants/config";
 import type { ToolType, BrushType, ShapeType } from "../types/canvas";
@@ -43,10 +44,10 @@ interface CanvasToolbarProps {
     handleRedo: () => void;
     clearCanvas: () => void;
     handleZoomIn: () => void;
-    handleZoomOut: () => void;
-    handleZoomReset: () => void;
+    handleZoomOut: () => void;    handleZoomReset: () => void;
     handleImport: () => void;
     handleExport: () => void;
+    handleSave?: () => void;
 }
 
 export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
@@ -71,10 +72,10 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
     handleRedo,
     clearCanvas,
     handleZoomIn,
-    handleZoomOut,
-    handleZoomReset,
+    handleZoomOut,    handleZoomReset,
     handleImport,
     handleExport,
+    handleSave,
 }) => {
     return (
         <div className="canvas-toolbar">
@@ -235,10 +236,13 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
                 <button onClick={handleZoomReset} className="tool-btn" title="Reset Zoom">
                     <Home size={20} />
                 </button>
-            </div>
-
-            {/* File Operations */}
+            </div>            {/* File Operations */}
             <div className="tool-group">
+                {handleSave && (
+                    <button onClick={handleSave} className="tool-btn" title="Save Canvas (Ctrl+S)">
+                        <Save size={20} />
+                    </button>
+                )}
                 <button onClick={handleImport} className="tool-btn" title="Import Image">
                     <Upload size={20} />
                 </button>
