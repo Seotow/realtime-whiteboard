@@ -116,6 +116,9 @@ docker-compose up --build
 - [x] Viewport controls (zoom, pan with Space key)
 - [x] Canvas serialization/deserialization
 - [x] Real-time canvas synchronization
+- [x] Auto-save functionality
+- [x] Canvas focus management
+- [x] Keyboard shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+S, etc.)
 
 #### Basic Drawing Tools ✅
 - [x] **Pen tool implementation**
@@ -138,22 +141,27 @@ docker-compose up --build
   - [x] Opacity slider (0.1-1.0)
   - [x] Real-time opacity preview
   - [x] Percentage display
+- [x] **Zoom controls**
+  - [x] Zoom in/out buttons
+  - [x] Zoom reset to 100%
+  - [x] Mouse wheel zoom with Alt key
+  - [x] Zoom level display
   
 #### Real-time Collaboration ✅
-- [ ] **Multi-user canvas sharing**
-  - [ ] Real-time drawing synchronization
-  - [ ] Canvas action broadcasting (add/update/delete/clear)
-  - [ ] Object conflict resolution
-  - [ ] User identification in actions
-- [ ] **Cursor sharing**
-  - [ ] Real-time cursor position updates
-  - [ ] Cursor movement broadcasting
-  - [ ] User-specific cursor colors
-- [ ] **Session management**
-  - [ ] Board join/leave events
-  - [ ] User presence tracking
-  - [ ] Connection state handling
-  - [ ] Reconnection support
+- [x] **Multi-user canvas sharing**
+  - [x] Real-time drawing synchronization
+  - [x] Canvas action broadcasting (add/update/delete/clear)
+  - [x] Object conflict resolution
+  - [x] User identification in actions
+- [x] **Cursor sharing**
+  - [x] Real-time cursor position updates
+  - [x] Cursor movement broadcasting
+  - [x] User-specific cursor colors
+- [x] **Session management**
+  - [x] Board join/leave events
+  - [x] User presence tracking
+  - [x] Connection state handling
+  - [x] Reconnection support
 
 ### Phase 2: Advanced Drawing Features ✅
 - [x] **Text tool** (editable text objects)
@@ -164,20 +172,20 @@ docker-compose up --build
 - [x] **Selection tool** (multi-object selection)
 - [x] **Image upload and insertion** (file import)
 
-### Phase 3: Collaboration Features ⏳
-- [ ] User presence indicators
-- [ ] Real-time cursors
+### Phase 3: Collaboration Features ✅
+- [x] User presence indicators
+- [x] Real-time cursors
 - [ ] Voice/Video chat integration
 - [ ] Comments and annotations
-- [ ] Board sharing and permissions
-- [ ] Export (PDF, PNG, SVG)
+- [x] Board sharing and permissions
+- [x] Export (PDF, PNG, SVG)
 
 ### Phase 4: Advanced Features ⏳
 - [ ] Templates library
 - [ ] Board versioning
 - [ ] Presentation mode
-- [ ] Mobile responsive design
-- [ ] Offline mode with sync
+- [x] Mobile responsive design
+- [x] Offline mode with sync
 - [ ] Plugins/Extensions system
 
 ## API Endpoints

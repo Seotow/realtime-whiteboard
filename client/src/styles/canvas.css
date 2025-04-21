@@ -15,13 +15,213 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
     padding: 16px;
     display: flex;
-    gap: 20px;
+    flex-wrap: wrap;
+    gap: 16px;
     align-items: center;
     z-index: 10;
     max-width: calc(100vw - 40px);
     overflow: visible; /* Allow dropdowns to show outside toolbar */
     scrollbar-width: none;
     -ms-overflow-style: none;
+}
+
+/* Responsive toolbar wrapping based on viewport height */
+@media (max-height: 800px) {
+    .canvas-toolbar {
+        flex-wrap: wrap;
+        max-width: calc(100vw - 40px);
+        gap: 12px;
+        padding: 12px;
+    }
+    
+    .tool-group {
+        gap: 6px;
+        padding-right: 12px;
+        border-right: 1px solid #f1f5f9;
+    }
+}
+
+@media (max-height: 700px) {
+    .canvas-toolbar {
+        flex-wrap: wrap;
+        max-width: calc(100vw - 40px);
+        gap: 10px;
+        padding: 10px;
+    }
+    
+    .tool-group {
+        gap: 4px;
+        padding-right: 10px;
+        border-right: 1px solid #f1f5f9;
+    }
+    
+    .tool-btn {
+        width: 38px;
+        height: 38px;
+    }
+}
+
+/* Responsive styles for control elements */
+@media (max-height: 700px) {
+    .brush-size-container {
+        min-width: 100px;
+    }
+    
+    .brush-size-label,
+    .opacity-label,
+    .brush-type-label {
+        font-size: 10px;
+    }
+    
+    .brush-size-slider {
+        height: 4px;
+    }
+    
+    .brush-size-value,
+    .opacity-value {
+        font-size: 10px;
+        min-width: 28px;
+    }
+    
+    .zoom-level {
+        font-size: 10px;
+        min-width: 35px;
+    }
+}
+
+@media (max-height: 600px) {
+    .canvas-toolbar {
+        flex-wrap: wrap;
+        max-width: calc(100vw - 30px);
+        gap: 8px;
+        padding: 8px;
+        top: 10px;
+        left: 10px;
+    }
+    
+    .tool-group {
+        gap: 3px;
+        padding-right: 8px;
+        border-right: 1px solid #f1f5f9;
+        flex-shrink: 0;
+    }
+    
+    .tool-btn {
+        width: 34px;
+        height: 34px;
+    }
+    
+    .brush-size-container,
+    .brush-type-container,
+    .opacity-container {
+        min-width: 70px;
+    }
+    
+    .brush-size-label,
+    .opacity-label,
+    .brush-type-label {
+        display: none; /* Hide labels on very small heights */
+    }
+    
+    .brush-type-select {
+        font-size: 10px;
+        padding: 2px 4px;
+    }
+    
+    .opacity-slider {
+        width: 50px;
+        height: 3px;
+    }
+    
+    .zoom-level {
+        font-size: 9px;
+        min-width: 30px;
+    }
+}
+
+/* Make toolbar wrap more aggressively on smaller heights */
+@media (max-height: 500px) {
+    .canvas-toolbar {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        align-items: flex-start;
+        max-width: calc(100vw - 20px);
+        gap: 6px;
+        padding: 6px;
+        top: 5px;
+        left: 5px;
+    }
+    
+    .tool-group {
+        gap: 2px;
+        padding-right: 6px;
+        border-right: 1px solid #f1f5f9;
+        margin-bottom: 4px;
+        flex-wrap: wrap;
+    }
+    
+    .tool-group:last-child {
+        border-right: none;
+        padding-right: 0;
+    }
+    
+    .tool-btn {
+        width: 30px;
+        height: 30px;
+    }
+    
+    .brush-size-container {
+        flex-direction: row;
+        min-width: 60px;
+    }
+    
+    .brush-type-container,
+    .opacity-container {
+        min-width: 60px;
+    }
+    
+    .brush-size-value,
+    .opacity-value {
+        font-size: 9px;
+        min-width: 24px;
+    }
+    
+    .color-picker-btn {
+        width: 30px;
+        height: 30px;
+    }
+    
+    .zoom-level {
+        font-size: 8px;
+        min-width: 25px;
+    }
+}
+
+/* Make tool groups wrap individually on very small heights */
+@media (max-height: 450px) {
+    .canvas-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 4px;
+        gap: 4px;
+    }
+    
+    .tool-group {
+        border-right: none;
+        border-bottom: 1px solid #f1f5f9;
+        padding-right: 0;
+        padding-bottom: 4px;
+        margin-bottom: 4px;
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .tool-group:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+        margin-bottom: 0;
+    }
 }
 
 .canvas-toolbar::-webkit-scrollbar {
@@ -35,6 +235,8 @@
     padding-right: 20px;
     border-right: 2px solid #f1f5f9;
     min-width: fit-content;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
 }
 
 .tool-group:last-child {

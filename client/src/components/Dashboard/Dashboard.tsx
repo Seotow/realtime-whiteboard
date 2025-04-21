@@ -183,8 +183,7 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
 
 export const Dashboard: React.FC = () => {
     const navigate = useNavigate();
-    const { user, _hasHydrated } = useAuthStore();
-    const { boards, isLoading, fetchBoards, createBoard, deleteBoard } =
+    const { user, _hasHydrated } = useAuthStore();    const { boards, isLoading, fetchBoards, createBoard, deleteBoard, updateBoard } =
         useBoardStore();
     const [searchQuery, setSearchQuery] = useState("");
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -263,17 +262,38 @@ export const Dashboard: React.FC = () => {
         } catch (error) {
             console.error("Failed to delete board:", error);
         }
-    };
-    const handleShareBoard = async (boardId: string) => {
-        const shareUrl = `${window.location.origin}/board/${boardId}`;
+    };    const handleShareBoard = async (boardId: string) => {
         try {
+            // Get the board first to check if it's already public
+            const board = boards.find(b => b.id === boardId);
+            
+            let shareUrl;
+            if (board?.isPublic) {
+                // Already public, just copy the link
+                shareUrl = `${window.location.origin}/board/${boardId}`;
+            } else {
+                // Make it public first
+                await updateBoard(boardId, { isPublic: true });
+                shareUrl = `${window.location.origin}/board/${boardId}`;
+                // Refresh boards to update the UI
+                fetchBoards();
+            }
+            
             await navigator.clipboard.writeText(shareUrl);
-            setToastMessage("Board link copied to clipboard!");
-            setTimeout(() => setToastMessage(null), 3000);
+            setToastMessage("Board link copied to clipboard! Anyone with this link can now view the board.");
+            setTimeout(() => setToastMessage(null), 4000);
         } catch (error) {
-            console.error("Failed to copy to clipboard:", error);
-            // Fallback: show the URL in a prompt
-            prompt("Copy this link to share the board:", shareUrl);
+            console.error("Failed to share board:", error);
+            // Fallback: still generate and show the URL
+            const shareUrl = `${window.location.origin}/board/${boardId}`;
+            try {
+                await navigator.clipboard.writeText(shareUrl);
+                setToastMessage("Board link copied! Note: You may need to make the board public in settings.");
+                setTimeout(() => setToastMessage(null), 4000);
+            } catch (clipboardError) {
+                // Final fallback: show the URL in a prompt
+                prompt("Copy this link to share the board:", shareUrl);
+            }
         }
     };
     const handleDuplicateBoard = async (board: {

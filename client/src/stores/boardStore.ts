@@ -51,6 +51,12 @@ export interface BoardState {
     joinBoard: (boardId: string) => void;
     leaveBoard: (boardId: string) => void;
     emitCanvasAction: (action: CanvasAction) => void;
+    
+    // Collaboration actions
+    addCollaborator: (boardId: string, email: string, role?: string) => Promise<void>;
+    removeCollaborator: (boardId: string, collaboratorId: string) => Promise<void>;
+    generateShareableLink: (boardId: string, makePublic?: boolean) => Promise<{ shareUrl: string; isPublic: boolean }>;
+    
     // Canvas save/load actions
     saveCanvasContent: (
         boardId: string,
@@ -220,6 +226,64 @@ export const useBoardStore = create<BoardState>()(
 
         emitCanvasAction: (action) => {
             socketService.emitCanvasAction(action);
+        },
+
+        // Collaboration operations
+        addCollaborator: async (boardId, email, role = 'viewer') => {
+            set({ isLoading: true, error: null });
+            try {                await boardApi.addCollaborator(boardId, email, role);
+                // Refresh board data to show new collaborator
+                const updatedBoard = await boardApi.getBoardById(boardId);
+                set(() => ({
+                    currentBoard: updatedBoard,
+                    isLoading: false,
+                }));
+            } catch (error) {
+                set({
+                    error: error instanceof Error ? error.message : "Failed to add collaborator",
+                    isLoading: false,
+                });
+                throw error;
+            }
+        },
+
+        removeCollaborator: async (boardId, collaboratorId) => {
+            set({ isLoading: true, error: null });
+            try {                await boardApi.removeCollaborator(boardId, collaboratorId);
+                // Refresh board data to remove collaborator
+                const updatedBoard = await boardApi.getBoardById(boardId);
+                set(() => ({
+                    currentBoard: updatedBoard,
+                    isLoading: false,
+                }));
+            } catch (error) {
+                set({
+                    error: error instanceof Error ? error.message : "Failed to remove collaborator",
+                    isLoading: false,
+                });
+                throw error;
+            }
+        },
+
+        generateShareableLink: async (boardId, makePublic = true) => {
+            set({ isLoading: true, error: null });
+            try {
+                const result = await boardApi.generateShareableLink(boardId, makePublic);
+                // Update current board if it's the one being shared
+                set((state) => ({
+                    currentBoard: state.currentBoard?.id === boardId 
+                        ? { ...state.currentBoard, isPublic: result.isPublic }
+                        : state.currentBoard,
+                    isLoading: false,
+                }));
+                return result;
+            } catch (error) {
+                set({
+                    error: error instanceof Error ? error.message : "Failed to generate shareable link",
+                    isLoading: false,
+                });
+                throw error;
+            }
         },
 
         // Canvas save/load operations

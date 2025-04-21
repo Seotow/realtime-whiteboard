@@ -1,6 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Canvas } from '../components/Canvas/Canvas';
+import { Layout } from '../components/Layout/Layout';
+import { ShareModal } from '../components/Canvas/components/ShareModal';
 import { useBoardStore } from '../stores/boardStore';
 import { useAuthStore } from '../stores/authStore';
 import { socketService } from '../services/socketService';
@@ -19,8 +21,9 @@ export const BoardPage: React.FC = () => {
     leaveBoard,
     connectedUsers 
   } = useBoardStore();
-  useEffect(() => {
-    if (!boardId || !user) {
+  
+  const [showShareModal, setShowShareModal] = useState(false);  useEffect(() => {
+    if (!boardId) {
       navigate('/dashboard');
       return;
     }
@@ -28,22 +31,26 @@ export const BoardPage: React.FC = () => {
     // Get token from auth store or fallback to localStorage
     const authToken = token || localStorage.getItem('accessToken');
     
-    if (!authToken) {
-      console.error('No authentication token available');
-      navigate('/dashboard');
-      return;
-    }
+    // For public boards, allow access without authentication
+    // Try to fetch the board first to check if it's public
+    console.log('BoardPage: Accessing board:', boardId);
+    console.log('BoardPage: User:', user ? 'authenticated' : 'anonymous');
+    console.log('BoardPage: Token:', authToken ? 'present' : 'missing');
 
-    console.log('BoardPage: Connecting with token:', authToken ? 'present' : 'missing');
-
-    // Fetch board data
+    // Fetch board data (this will work for public boards even without auth)
     fetchBoard(boardId);
 
     // Join board for real-time collaboration
-    joinBoard(boardId);    // Connect to socket with authentication token
+    joinBoard(boardId);    // Connect to socket with authentication token (if available)
     if (!socketService.isConnected()) {
-      socketService.connect(authToken);
-    }    return () => {
+      if (authToken) {
+        socketService.connect(authToken);
+      } else {
+        // For public boards, connect without authentication
+        console.log('BoardPage: Connecting without authentication for public board access');
+        socketService.connect();
+      }
+    }return () => {
       leaveBoard(boardId);
     };
   }, [boardId, user, token, navigate, fetchBoard, joinBoard, leaveBoard]);
@@ -88,62 +95,28 @@ export const BoardPage: React.FC = () => {
         </div>
       </div>
     );
-  }
-
-  return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="text-gray-600 hover:text-gray-900"
-          >
-            ← Back to Dashboard
-          </button>
-          <h1 className="text-xl font-semibold text-gray-900">{currentBoard.title}</h1>
-        </div>
-        
-        <div className="flex items-center gap-4">
-          {/* Connected Users */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">
-              {connectedUsers.length} {connectedUsers.length === 1 ? 'user' : 'users'} connected
-            </span>
-            <div className="flex -space-x-2">
-              {connectedUsers.slice(0, 5).map((connectedUser) => (
-                <div
-                  key={connectedUser.id}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white"
-                  style={{ backgroundColor: connectedUser.color }}
-                  title={connectedUser.username}
-                >
-                  {connectedUser.username.charAt(0).toUpperCase()}
-                </div>
-              ))}
-              {connectedUsers.length > 5 && (
-                <div className="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center text-white text-xs font-medium border-2 border-white">
-                  +{connectedUsers.length - 5}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Share Button */}
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
-            Share
-          </button>
-        </div>
-      </header>
-
-      {/* Canvas */}
-      <main className="flex-1 overflow-hidden">
+  }  return (
+    <Layout
+      collaboration={{
+        connectedUsers,
+        isConnected: socketService.isConnected(),
+        onShare: () => setShowShareModal(true)
+      }}
+    >
+      <div className="h-screen overflow-hidden">
         <Canvas 
           boardId={boardId!} 
           width={window.innerWidth}
           height={window.innerHeight - 64} // Subtract header height
         />
-      </main>
-    </div>
+        
+        {/* Share Modal */}
+        <ShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          boardId={boardId!}
+        />
+      </div>
+    </Layout>
   );
 };

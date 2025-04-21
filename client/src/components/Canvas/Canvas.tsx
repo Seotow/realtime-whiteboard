@@ -23,6 +23,7 @@ import { useSocketEvents } from "./hooks/useSocketEvents";
 import { useCanvasToolConfiguration } from "./hooks/useCanvasToolConfiguration";
 import { useCanvasAutoSave } from "./hooks/useCanvasAutoSave";
 import { useCanvasFocus } from "./hooks/useCanvasFocus";
+import { useRealtimeCollaboration } from "./hooks/useRealtimeCollaboration";
 
 import "../../styles/canvas.css";
 
@@ -46,10 +47,8 @@ export const Canvas: React.FC<CanvasProps> = ({
     const [isDrawing, setIsDrawing] = useState(false);
     const [opacity, setOpacity] = useState(DEFAULT_BRUSH_CONFIG.opacity);
     const [isPanning, setIsPanning] = useState(false);
-    const [lastPanPoint, setLastPanPoint] = useState<{ x: number; y: number } | null>(null);
-    const [isSpacePressed, setIsSpacePressed] = useState(false);
-    const [isAltPressed, setIsAltPressed] = useState(false);
-    const [canvasInitialized, setCanvasInitialized] = useState(false);
+    const [lastPanPoint, setLastPanPoint] = useState<{ x: number; y: number } | null>(null);    const [isSpacePressed, setIsSpacePressed] = useState(false);
+    const [isAltPressed, setIsAltPressed] = useState(false);    const [canvasInitialized, setCanvasInitialized] = useState(false);
     const [isAdjustingBrushSize, setIsAdjustingBrushSize] = useState(false);
     const [lastBrushAdjustX, setLastBrushAdjustX] = useState<number | null>(null);
 
@@ -68,7 +67,21 @@ export const Canvas: React.FC<CanvasProps> = ({
     const { focusCanvas } = useCanvasFocus({
         fabricCanvasRef,
         isCanvasInitialized: canvasInitialized,
-    });    // Additional focus management for specific scenarios
+    });    // Real-time collaboration
+    const { remoteCursors } = useRealtimeCollaboration({
+        fabricCanvasRef,
+        boardId,
+        isCanvasInitialized: canvasInitialized,
+    });
+
+    // Log remote cursors for debugging (will be rendered by useRealtimeCollaboration)
+    React.useEffect(() => {
+        if (remoteCursors.length > 0) {
+            console.log(`${remoteCursors.length} remote cursor(s) active`);
+        }
+    }, [remoteCursors]);
+
+    // Additional focus management for specific scenarios
     React.useEffect(() => {
         // Focus canvas when component mounts and becomes ready
         if (canvasInitialized && canvasRef.current && fabricCanvasRef.current) {
@@ -292,7 +305,7 @@ export const Canvas: React.FC<CanvasProps> = ({
                         focusCanvas();
                     }
                 }}
-            />{/* Save Status Indicator */}
+            />            {/* Save Status Indicator */}
             <SaveStatus
                 isSaving={isSaving}
                 lastSaveTime={lastSaveTime}
@@ -328,12 +341,12 @@ export const Canvas: React.FC<CanvasProps> = ({
                 handleRedo={handleRedo}
                 clearCanvas={clearCanvas}
                 handleZoomIn={handleZoomIn}
-                handleZoomOut={handleZoomOut}
-                handleZoomReset={handleZoomReset}
-                handleImport={handleImport}
+                handleZoomOut={handleZoomOut}                handleZoomReset={handleZoomReset}                handleImport={handleImport}
                 handleExport={handleExport}
                 handleSave={saveCanvas}
-            />            <CanvasInstructions
+            />
+
+            <CanvasInstructions
                 isAdjustingBrushSize={isAdjustingBrushSize}
                 currentTool={currentTool}
                 brushSize={brushSize}

@@ -89,36 +89,39 @@ export const useCanvasAutoSave = ({
             console.error("Failed to save canvas:", error);        } finally {
             setIsSaving(false);            // Clear the saving flag after a short delay to prevent immediate reload
             setTimeout(() => {
-                isSavingContentRef.current = false;
-                // Auto-focus canvas after save to ensure it's ready for drawing
+                isSavingContentRef.current = false;                // Auto-focus canvas after save to ensure it's ready for drawing
                 if (fabricCanvasRef.current) {
                     const canvas = fabricCanvasRef.current;
-                    const canvasElement = canvas.getElement();
-                    if (canvasElement) {
-                        canvasElement.focus();
-                        
-                        // Re-activate drawing mode if it was active
-                        if (canvas.isDrawingMode) {
-                            canvas.setCursor(canvas.freeDrawingCursor || 'crosshair');
+                    const canvasElement = canvas.getElement && canvas.getElement();
+                    if (canvasElement && canvasElement.focus && typeof canvasElement.focus === 'function') {
+                        try {
+                            canvasElement.focus();
                             
-                            // Simulate mouse event to reactivate drawing context
-                            const rect = canvasElement.getBoundingClientRect();
-                            if (rect.width > 0 && rect.height > 0) {
-                                const event = new MouseEvent('mousemove', {
-                                    clientX: rect.left + rect.width / 2,
-                                    clientY: rect.top + rect.height / 2,
-                                    bubbles: true
-                                });
-                                canvasElement.dispatchEvent(event);
+                            // Re-activate drawing mode if it was active
+                            if (canvas.isDrawingMode) {
+                                canvas.setCursor(canvas.freeDrawingCursor || 'crosshair');
+                                
+                                // Simulate mouse event to reactivate drawing context
+                                const rect = canvasElement.getBoundingClientRect();
+                                if (rect && rect.width > 0 && rect.height > 0) {
+                                    const event = new MouseEvent('mousemove', {
+                                        clientX: rect.left + rect.width / 2,
+                                        clientY: rect.top + rect.height / 2,
+                                        bubbles: true
+                                    });
+                                    canvasElement.dispatchEvent(event);
+                                }
                             }
+                            
+                            console.log('Canvas auto-focused and reactivated after save');
+                        } catch (error) {
+                            console.warn('Error focusing canvas after save:', error);
                         }
-                        
-                        console.log('Canvas auto-focused and reactivated after save');
                     }
                 }
             }, 1000);
         }
-    }, [fabricCanvasRef, user, boardId, isCanvasInitialized, saveCanvasContent]);    // Debounced auto-save function
+    }, [fabricCanvasRef, user, boardId, isCanvasInitialized, saveCanvasContent]);// Debounced auto-save function
     const autoSave = useCallback(() => {
         // Don't auto-save if we're still loading initial content
         if (isLoadingInitialContentRef.current) {

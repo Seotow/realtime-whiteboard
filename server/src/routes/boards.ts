@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import { authenticateToken } from '../middleware/auth';
+import { Router, Request, Response, NextFunction } from 'express';
+import { authenticateToken, optionalAuth } from '../middleware/auth';
 import { validateInput } from '../middleware/validation';
 import { BoardService } from '../services/boardService';
 import { 
@@ -64,11 +64,11 @@ boardRoutes.post('/', validateInput(z.object({ body: createBoardSchema })), asyn
   }
 });
 
-// Get board by ID
-boardRoutes.get('/:id', async (req, res, next) => {
+// Get board by ID (with optional auth for public boards)
+boardRoutes.get('/:id', optionalAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const userId = req.user!.userId;
+    const userId = req.user?.userId || null;
     
     const board = await BoardService.getBoardById(id, userId);
     res.json(board);
@@ -78,10 +78,10 @@ boardRoutes.get('/:id', async (req, res, next) => {
 });
 
 // Update board
-boardRoutes.put('/:id', validateInput(z.object({ body: updateBoardSchema })), async (req, res, next) => {
+boardRoutes.put('/:id', [optionalAuth, validateInput(z.object({ body: updateBoardSchema }))], async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const userId = req.user!.userId;
+    const userId = req.user?.userId || null;
     const updateData = req.body;
     
     const board = await BoardService.updateBoard(id, userId, updateData);
@@ -168,6 +168,20 @@ boardRoutes.post('/:id/save', validateInput(z.object({ body: saveCanvasSchema })
     
     const result = await BoardService.saveCanvasContent(id, userId, content, settings);
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Save canvas content (for public boards)
+boardRoutes.put('/:id/content', [optionalAuth, validateInput(z.object({ body: saveCanvasSchema }))], async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.userId || 'anonymous';
+    const { content } = req.body;
+    
+    const board = await BoardService.updateBoard(id, userId, { content });
+    res.json(board);
   } catch (error) {
     next(error);
   }

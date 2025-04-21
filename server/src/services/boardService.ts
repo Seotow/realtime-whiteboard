@@ -68,9 +68,8 @@ export class BoardService {  // Get user's boards with pagination and search
       }
     };
   }
-
   // Get board by ID with permission check
-  static async getBoardById(boardId: string, userId: string) {
+  static async getBoardById(boardId: string, userId: string | null) {
     const board = await prisma.board.findUnique({
       where: { id: boardId },
       include: {
@@ -87,17 +86,20 @@ export class BoardService {  // Get user's boards with pagination and search
       throw new Error('Board not found');
     }
 
-    // Check permissions
-    const hasAccess = board.userId === userId || 
-                     board.isPublic || 
-                     board.collaborators.some(c => c.userId === userId);
+    // Check permissions - allow access if:
+    // 1. Board is public (anyone can access)
+    // 2. User is authenticated and is the owner
+    // 3. User is authenticated and is a collaborator
+    const hasAccess = board.isPublic || 
+                     (userId && board.userId === userId) || 
+                     (userId && board.collaborators.some(c => c.userId === userId));
 
     if (!hasAccess) {
       throw new Error('Access denied');
     }
 
     return board;
-  }  // Create new board
+  }// Create new board
   static async createBoard(userId: string, data: CreateBoardRequest) {
     const board = await prisma.board.create({
       data: {
@@ -123,18 +125,40 @@ export class BoardService {  // Get user's boards with pagination and search
     await this.logActivity(board.id, userId, 'created', { title: board.title });
 
     return board;
-  }
+  }  // Update board
+  static async updateBoard(boardId: string, userId: string | null, data: UpdateBoardRequest) {
+    // First get the board to check permissions
+    const board = await prisma.board.findUnique({
+      where: { id: boardId },
+      include: {
+        user: {
+          select: { id: true, username: true, email: true }
+        },
+        collaborators: {
+          select: { userId: true, role: true, addedAt: true }
+        }
+      }
+    });
 
-  // Update board
-  static async updateBoard(boardId: string, userId: string, data: UpdateBoardRequest) {
-    // First check if user has edit permission
-    const board = await this.getBoardById(boardId, userId);
+    if (!board) {
+      throw new Error('Board not found');
+    }
     
-    const hasEditPermission = board.userId === userId || 
-                             board.collaborators.some(c => c.userId === userId && ['editor', 'admin'].includes(c.role));
-
-    if (!hasEditPermission) {
-      throw new Error('Edit permission denied');
+    // Simplified permission logic:
+    // 1. If board is public, allow anyone (including anonymous users) to edit
+    // 2. If board is private, only allow owner and collaborators
+    if (board.isPublic) {
+      // Public boards allow anyone to edit, no further checks needed
+    } else if (!userId) {
+      // Anonymous user trying to edit private board
+      throw new Error('Authentication required for private boards');
+    } else {
+      // Private board - check if user is owner or collaborator
+      const hasPrivateEditPermission = board.userId === userId || 
+                                      board.collaborators.some(c => c.userId === userId);
+      if (!hasPrivateEditPermission) {
+        throw new Error('Permission denied - you must be the owner or a collaborator');
+      }
     }
 
     const updatedBoard = await prisma.board.update({
@@ -148,12 +172,12 @@ export class BoardService {  // Get user's boards with pagination and search
           select: { userId: true, role: true, addedAt: true }
         }
       }
-    });
-
-    // Log activity
-    await this.logActivity(boardId, userId, 'updated', { 
-      changes: Object.keys(data) 
-    });
+    });    // Log activity (only if user is authenticated)
+    if (userId) {
+      await this.logActivity(boardId, userId, 'updated', { 
+        changes: Object.keys(data) 
+      });
+    }
 
     return updatedBoard;
   }

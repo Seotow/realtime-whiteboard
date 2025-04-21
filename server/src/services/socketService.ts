@@ -1,5 +1,5 @@
 import { Server, Socket } from 'socket.io';
-import { logger } from '@/utils/logger';
+import { logger } from '../utils/logger';
 import { authService } from './authService';
 
 // Enhanced interfaces for real-time collaboration
@@ -99,7 +99,15 @@ class RoomManager {
 
 const roomManager = new RoomManager();
 
-// Authentication middleware for sockets
+// List of random names for anonymous users
+const anonymousNames = [
+  'Curious Cat', 'Brave Bear', 'Swift Fox', 'Wise Owl', 'Happy Panda',
+  'Cool Penguin', 'Clever Dolphin', 'Bold Eagle', 'Gentle Deer', 'Playful Otter',
+  'Mighty Lion', 'Graceful Swan', 'Friendly Elephant', 'Quick Rabbit', 'Strong Wolf',
+  'Elegant Horse', 'Cheerful Parrot', 'Creative Octopus', 'Adventurous Monkey', 'Peaceful Dove'
+];
+
+// Authentication middleware for sockets (with optional auth for public boards)
 const authenticateSocket = async (socket: Socket, next: Function) => {
   try {
     const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
@@ -109,8 +117,15 @@ const authenticateSocket = async (socket: Socket, next: Function) => {
     console.log('Socket auth: authorization header:', socket.handshake.headers.authorization);
     
     if (!token) {
-      console.log('Socket auth: No token provided');
-      return next(new Error('Authentication token required'));
+      console.log('Socket auth: No token provided, allowing anonymous access for public boards');
+      // Allow anonymous access - create anonymous user with random name
+      const randomName = anonymousNames[Math.floor(Math.random() * anonymousNames.length)];
+      socket.data.user = {
+        userId: `anonymous_${socket.id}`,
+        username: randomName,
+        email: 'anonymous@example.com'
+      };
+      return next();
     }
 
     console.log('Socket auth: Verifying token...');
@@ -120,7 +135,15 @@ const authenticateSocket = async (socket: Socket, next: Function) => {
     next();
   } catch (error) {
     console.error('Socket auth: Token verification failed:', error);
-    next(new Error('Invalid authentication token'));
+    // For token verification errors, still allow anonymous access
+    console.log('Socket auth: Falling back to anonymous access');
+    const randomName = anonymousNames[Math.floor(Math.random() * anonymousNames.length)];
+    socket.data.user = {
+      userId: `anonymous_${socket.id}`,
+      username: randomName,
+      email: 'anonymous@example.com'
+    };
+    next();
   }
 };
 

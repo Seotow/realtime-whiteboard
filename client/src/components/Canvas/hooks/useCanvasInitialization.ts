@@ -17,22 +17,41 @@ export const useCanvasInitialization = (
 ) => {
     const hasInitialized = useRef(false);
     const contentLoadedRef = useRef(false);
-    const loadAttemptedRef = useRef(false);// Initialize canvas only once
+    const loadAttemptedRef = useRef(false);    // Initialize canvas only once
     useEffect(() => {
         if (!canvasRef.current || hasInitialized.current) return;
 
-        console.log('Initializing canvas...');
-        hasInitialized.current = true;
+        // Ensure fabric.js is loaded
+        if (typeof fabric === 'undefined' || !fabric.Canvas) {
+            console.error('Fabric.js not loaded properly');
+            return;
+        }        try {
+            console.log('Initializing canvas...');
+            hasInitialized.current = true;
 
-        const canvas = new fabric.Canvas(canvasRef.current, {
-            width,
-            height,
-            backgroundColor: DEFAULT_CANVAS_CONFIG.backgroundColor,
-            selection: DEFAULT_CANVAS_CONFIG.selection,
-            preserveObjectStacking: DEFAULT_CANVAS_CONFIG.preserveObjectStacking,
-        });
+            // Ensure the canvas element is properly sized
+            const canvasElement = canvasRef.current;
+            if (!canvasElement) {
+                console.error('Canvas element not found');
+                return;
+            }
+            
+            canvasElement.width = width;
+            canvasElement.height = height;
+            if (canvasElement.style) {
+                canvasElement.style.width = `${width}px`;
+                canvasElement.style.height = `${height}px`;
+            }
 
-        fabricCanvasRef.current = canvas;        // Wait a bit to ensure canvas is fully mounted and context is ready
+            const canvas = new fabric.Canvas(canvasElement, {
+                width,
+                height,
+                backgroundColor: DEFAULT_CANVAS_CONFIG.backgroundColor,
+                selection: DEFAULT_CANVAS_CONFIG.selection,
+                preserveObjectStacking: DEFAULT_CANVAS_CONFIG.preserveObjectStacking,
+            });
+
+            fabricCanvasRef.current = canvas;// Wait a bit to ensure canvas is fully mounted and context is ready
         setTimeout(() => {
             if (fabricCanvasRef.current) {                // Initialize with default pen tool
                 canvas.isDrawingMode = true;
@@ -47,41 +66,44 @@ export const useCanvasInitialization = (
                 (canvas as fabric.Canvas & { _isLoadingContent?: boolean })._isLoadingContent = false;
                 
                 // Force the canvas to be ready for drawing immediately
-                canvas.setCursor(canvas.freeDrawingCursor || 'crosshair');
-                
-                // Auto-focus the canvas for better UX and activate drawing context
+                canvas.setCursor(canvas.freeDrawingCursor || 'crosshair');                // Auto-focus the canvas for better UX and activate drawing context
                 const canvasElement = canvas.getElement();
-                if (canvasElement) {
-                    canvasElement.focus();
-                    
-                    // Make canvas element fully interactive
-                    canvasElement.style.pointerEvents = 'auto';
-                    canvasElement.style.touchAction = 'none';
-                    
-                    // Simulate a mouse interaction to fully activate the drawing context
-                    const rect = canvasElement.getBoundingClientRect();
-                    const centerX = rect.width / 2;
-                    const centerY = rect.height / 2;
-                    
-                    // Create and dispatch synthetic events to activate drawing
-                    const mouseMoveEvent = new MouseEvent('mousemove', {
-                        clientX: rect.left + centerX,
-                        clientY: rect.top + centerY,
-                        bubbles: true,
-                        cancelable: true
-                    });
-                    
-                    const mouseEnterEvent = new MouseEvent('mouseenter', {
-                        clientX: rect.left + centerX,
-                        clientY: rect.top + centerY,
-                        bubbles: true,
-                        cancelable: true
-                    });
-                    
-                    canvasElement.dispatchEvent(mouseEnterEvent);
-                    canvasElement.dispatchEvent(mouseMoveEvent);
-                    
-                    console.log('Canvas auto-focused and drawing context activated on initialization');
+                if (canvasElement && canvasElement.style && typeof canvasElement.focus === 'function') {
+                    try {
+                        canvasElement.focus();
+                        
+                        // Make canvas element fully interactive
+                        canvasElement.style.pointerEvents = 'auto';
+                        canvasElement.style.touchAction = 'none';
+                        
+                        // Simulate a mouse interaction to fully activate the drawing context
+                        const rect = canvasElement.getBoundingClientRect();
+                        const centerX = rect.width / 2;
+                        const centerY = rect.height / 2;
+                          // Create and dispatch synthetic events to activate drawing
+                        const mouseMoveEvent = new MouseEvent('mousemove', {
+                            clientX: rect.left + centerX,
+                            clientY: rect.top + centerY,
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        
+                        const mouseEnterEvent = new MouseEvent('mouseenter', {
+                            clientX: rect.left + centerX,
+                            clientY: rect.top + centerY,
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        
+                        canvasElement.dispatchEvent(mouseEnterEvent);
+                        canvasElement.dispatchEvent(mouseMoveEvent);
+                        
+                        console.log('Canvas auto-focused and drawing context activated on initialization');
+                    } catch (error) {
+                        console.error('Error during canvas element setup:', error);
+                    }
+                } else {
+                    console.warn('Canvas element not available or missing style property');
                 }
                 
                 setCanvasInitialized(true);
@@ -92,11 +114,11 @@ export const useCanvasInitialization = (
                     if (fabricCanvasRef.current) {
                         (fabricCanvasRef.current as fabric.Canvas & { _isLoadingContent?: boolean })._isLoadingContent = false;
                         console.log('Failsafe: Canvas loading flag cleared');
-                    }
-                }, 2000);
+                    }                }, 2000);
             }
         }, 50);
-          return () => {
+        
+        return () => {
             hasInitialized.current = false;
             contentLoadedRef.current = false;
             loadAttemptedRef.current = false;
@@ -104,7 +126,11 @@ export const useCanvasInitialization = (
                 canvas.dispose();
             }
         };
-    }, [canvasRef, fabricCanvasRef, width, height, setCanvasInitialized]);    // Load content separately to avoid re-initialization
+        } catch (error) {
+            console.error('Error during canvas initialization:', error);
+            hasInitialized.current = false;
+        }
+    }, [canvasRef, fabricCanvasRef, width, height, setCanvasInitialized]);// Load content separately to avoid re-initialization
     useEffect(() => {
         if (!fabricCanvasRef.current || !hasInitialized.current || contentLoadedRef.current || loadAttemptedRef.current) return;
 

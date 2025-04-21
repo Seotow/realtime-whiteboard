@@ -9,12 +9,27 @@ import {
   Menu,
   X,
   Home,
-  Palette
+  Palette,
+  Users,
+  Share,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useNavigate } from 'react-router-dom';
+import type { BoardUser } from '../../services/socketService';
 
-export const Header: React.FC = () => {
+interface CollaborationInfo {
+  connectedUsers: BoardUser[];
+  isConnected: boolean;
+  onShare?: () => void;
+}
+
+interface HeaderProps {
+  collaboration?: CollaborationInfo;
+}
+
+export const Header: React.FC<HeaderProps> = ({ collaboration }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const { user, logout } = useAuthStore();
@@ -49,19 +64,74 @@ export const Header: React.FC = () => {
                 My Boards
               </button>
             </nav>
-          </div>
-
-          {/* Right Side Actions */}
+          </div>          {/* Right Side Actions */}
           <div className="flex items-center gap-4">
-            {/* New Board Button */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="hidden sm:flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              New Board
-            </motion.button>
+            {/* Collaboration Section (only on board pages) */}
+            {collaboration && (
+              <>
+                {/* Connection Status */}
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100">
+                  {collaboration.isConnected ? (
+                    <Wifi className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <WifiOff className="w-4 h-4 text-red-500" />
+                  )}
+                  <span className="text-sm text-gray-600">
+                    {collaboration.isConnected ? 'Connected' : 'Disconnected'}
+                  </span>
+                </div>
+
+                {/* Connected Users */}
+                <div className="hidden sm:flex items-center gap-2">
+                  <Users className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">
+                    {collaboration.connectedUsers.length} online
+                  </span>
+                  
+                  {/* User Avatars */}
+                  <div className="flex -space-x-1">
+                    {collaboration.connectedUsers.slice(0, 3).map((user) => (
+                      <div 
+                        key={user.id}
+                        className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-xs text-white font-medium"
+                        style={{ backgroundColor: user.color }}
+                        title={user.username}
+                      >
+                        {user.username.charAt(0).toUpperCase()}
+                      </div>
+                    ))}
+                    {collaboration.connectedUsers.length > 3 && (
+                      <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-500 flex items-center justify-center text-xs text-white font-medium">
+                        +{collaboration.connectedUsers.length - 3}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Share Button */}
+                {collaboration.onShare && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={collaboration.onShare}
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    <Share className="w-4 h-4" />
+                    <span className="hidden sm:inline">Share</span>
+                  </motion.button>
+                )}
+              </>
+            )}            {/* New Board Button (only when not on board page) */}
+            {!collaboration && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="hidden sm:flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                New Board
+              </motion.button>
+            )}
 
             {/* User Menu */}
             <div className="relative">

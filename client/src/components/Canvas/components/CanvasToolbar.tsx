@@ -14,8 +14,7 @@ import {
     RotateCw,
     ZoomIn,
     ZoomOut,
-    Home,
-    Minus,
+    Home,    Minus,
     ArrowRight,
     Save,
 } from "lucide-react";
@@ -45,8 +44,7 @@ interface CanvasToolbarProps {
     clearCanvas: () => void;
     handleZoomIn: () => void;
     handleZoomOut: () => void;    handleZoomReset: () => void;
-    handleImport: () => void;
-    handleExport: () => void;
+    handleImport: () => void;    handleExport: () => void;
     handleSave?: () => void;
 }
 
@@ -72,8 +70,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
     handleRedo,
     clearCanvas,
     handleZoomIn,
-    handleZoomOut,    handleZoomReset,
-    handleImport,
+    handleZoomOut,    handleZoomReset,    handleImport,
     handleExport,
     handleSave,
 }) => {
@@ -237,8 +234,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
                     <Home size={20} />
                 </button>
             </div>            {/* File Operations */}
-            <div className="tool-group">
-                {handleSave && (
+            <div className="tool-group">                {handleSave && (
                     <button onClick={handleSave} className="tool-btn" title="Save Canvas (Ctrl+S)">
                         <Save size={20} />
                     </button>
