@@ -14,11 +14,10 @@ export interface BoardState {
     // Current board data
     currentBoard: Board | null;
     isLoading: boolean;
-    error: string | null;
-
-    // Board list
+    error: string | null;    // Board list
     boards: Board[];
     publicBoards: Board[];
+    accessedBoards: Board[];
     pagination: {
         page: number;
         limit: number;
@@ -36,8 +35,12 @@ export interface BoardState {
         page?: number;
         limit?: number;
         search?: string;
+    }) => Promise<void>;    fetchPublicBoards: (params?: {
+        page?: number;
+        limit?: number;
+        search?: string;
     }) => Promise<void>;
-    fetchPublicBoards: (params?: {
+    fetchAccessedBoards: (params?: {
         page?: number;
         limit?: number;
         search?: string;
@@ -75,13 +78,13 @@ export interface BoardState {
 }
 
 export const useBoardStore = create<BoardState>()(
-    subscribeWithSelector((set) => ({
-        // Initial state
+    subscribeWithSelector((set) => ({        // Initial state
         currentBoard: null,
         isLoading: false,
         error: null,
         boards: [],
         publicBoards: [],
+        accessedBoards: [],
         pagination: null,
         connectedUsers: [],
         canvasVersion: 0,
@@ -106,9 +109,7 @@ export const useBoardStore = create<BoardState>()(
                     isLoading: false,
                 });
             }
-        },
-
-        fetchPublicBoards: async (params) => {
+        },        fetchPublicBoards: async (params) => {
             set({ isLoading: true, error: null });
             try {
                 const response = await boardApi.getPublicBoards(params);
@@ -123,6 +124,26 @@ export const useBoardStore = create<BoardState>()(
                         error instanceof Error
                             ? error.message
                             : "Failed to fetch public boards",
+                    isLoading: false,
+                });
+            }
+        },
+
+        fetchAccessedBoards: async (params) => {
+            set({ isLoading: true, error: null });
+            try {
+                const response = await boardApi.getAccessedBoards(params);
+                set({
+                    accessedBoards: response.boards,
+                    pagination: response.pagination,
+                    isLoading: false,
+                });
+            } catch (error) {
+                set({
+                    error:
+                        error instanceof Error
+                            ? error.message
+                            : "Failed to fetch accessed boards",
                     isLoading: false,
                 });
             }

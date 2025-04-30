@@ -25,13 +25,29 @@ export const useCanvasActions = ({
     currentBoard,
     emitCanvasAction,
     saveCanvasState,
-}: UseCanvasActionsProps) => {
-    const addShape = useCallback(
+}: UseCanvasActionsProps) => {    const addShape = useCallback(
         (shapeType: ShapeType) => {
             if (!fabricCanvasRef.current || !user) return;
 
             const canvas = fabricCanvasRef.current;
-            const shape = createShape(shapeType, brushColor, opacity);
+            
+            // Get the center of the current viewport (visible area)
+            const zoom = canvas.getZoom();
+            const viewportTransform = canvas.viewportTransform!;
+            const canvasWidth = canvas.getWidth();
+            const canvasHeight = canvas.getHeight();
+            
+            // Calculate the center of the visible area
+            const visibleCenterX = (canvasWidth / 2 - viewportTransform[4]) / zoom;
+            const visibleCenterY = (canvasHeight / 2 - viewportTransform[5]) / zoom;
+            
+            const shape = createShape(
+                shapeType, 
+                brushColor, 
+                opacity,
+                visibleCenterX,
+                visibleCenterY
+            );
 
             canvas.add(shape);
             saveCanvasState();
@@ -46,13 +62,27 @@ export const useCanvasActions = ({
             });
         },
         [fabricCanvasRef, user, brushColor, opacity, boardId, emitCanvasAction, saveCanvasState]
-    );
-
-    const addText = useCallback(() => {
+    );    const addText = useCallback(() => {
         if (!fabricCanvasRef.current || !user) return;
 
         const canvas = fabricCanvasRef.current;
-        const text = createText(brushColor, opacity);
+        
+        // Get the center of the current viewport (visible area)
+        const zoom = canvas.getZoom();
+        const viewportTransform = canvas.viewportTransform!;
+        const canvasWidth = canvas.getWidth();
+        const canvasHeight = canvas.getHeight();
+        
+        // Calculate the center of the visible area
+        const visibleCenterX = (canvasWidth / 2 - viewportTransform[4]) / zoom;
+        const visibleCenterY = (canvasHeight / 2 - viewportTransform[5]) / zoom;
+        
+        const text = createText(
+            brushColor, 
+            opacity,
+            visibleCenterX,
+            visibleCenterY
+        );
 
         canvas.add(text);
         saveCanvasState();
@@ -65,13 +95,28 @@ export const useCanvasActions = ({
             userId: user.id,
             timestamp: new Date(),
         });
-    }, [fabricCanvasRef, user, brushColor, opacity, boardId, emitCanvasAction, saveCanvasState]);
-
-    const addLine = useCallback(() => {
+    }, [fabricCanvasRef, user, brushColor, opacity, boardId, emitCanvasAction, saveCanvasState]);    const addLine = useCallback(() => {
         if (!fabricCanvasRef.current || !user) return;
 
         const canvas = fabricCanvasRef.current;
-        const line = createLine(brushColor, brushSize, opacity);
+        
+        // Get the center of the current viewport (visible area)
+        const zoom = canvas.getZoom();
+        const viewportTransform = canvas.viewportTransform!;
+        const canvasWidth = canvas.getWidth();
+        const canvasHeight = canvas.getHeight();
+        
+        // Calculate the center of the visible area
+        const visibleCenterX = (canvasWidth / 2 - viewportTransform[4]) / zoom;
+        const visibleCenterY = (canvasHeight / 2 - viewportTransform[5]) / zoom;
+        
+        const line = createLine(
+            brushColor, 
+            brushSize, 
+            opacity,
+            visibleCenterX,
+            visibleCenterY
+        );
 
         canvas.add(line);
         saveCanvasState();
@@ -84,13 +129,28 @@ export const useCanvasActions = ({
             userId: user.id,
             timestamp: new Date(),
         });
-    }, [fabricCanvasRef, user, brushColor, brushSize, opacity, boardId, emitCanvasAction, saveCanvasState]);
-
-    const addArrow = useCallback(() => {
+    }, [fabricCanvasRef, user, brushColor, brushSize, opacity, boardId, emitCanvasAction, saveCanvasState]);    const addArrow = useCallback(() => {
         if (!fabricCanvasRef.current || !user) return;
 
         const canvas = fabricCanvasRef.current;
-        const arrow = createArrow(brushColor, brushSize, opacity);
+        
+        // Get the center of the current viewport (visible area)
+        const zoom = canvas.getZoom();
+        const viewportTransform = canvas.viewportTransform!;
+        const canvasWidth = canvas.getWidth();
+        const canvasHeight = canvas.getHeight();
+        
+        // Calculate the center of the visible area
+        const visibleCenterX = (canvasWidth / 2 - viewportTransform[4]) / zoom;
+        const visibleCenterY = (canvasHeight / 2 - viewportTransform[5]) / zoom;
+        
+        const arrow = createArrow(
+            brushColor, 
+            brushSize, 
+            opacity,
+            visibleCenterX,
+            visibleCenterY
+        );
 
         canvas.add(arrow);
         saveCanvasState();

@@ -18,8 +18,10 @@ import {
     Link,
 } from "lucide-react";
 import { useBoardStore } from "../../stores/boardStore";
+import type { Board } from "../../services/boardApi";
 import { useAuthStore } from "../../stores/authStore";
 import { LoadingSpinner } from "../UI/LoadingSpinner";
+import { BoardSettingsModal } from "./BoardSettingsModal";
 
 interface CreateBoardModalProps {
     isOpen: boolean;
@@ -46,11 +48,6 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
 
         setIsCreating(true);
         try {
-            console.log("Modal: Calling onCreateBoard with:", {
-                title: title.trim(),
-                description: description.trim(),
-                isPublic,
-            });
             await onCreateBoard({
                 title: title.trim(),
                 description: description.trim(),
@@ -58,13 +55,12 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
             });
 
             // Only reset and close if successful
-            console.log("Modal: Board creation successful, closing modal");
             setTitle("");
             setDescription("");
             setIsPublic(false);
             onClose();
         } catch (error) {
-            console.error("Modal: Failed to create board:", error);
+            console.error("Failed to create board:", error);
             // Don't close modal on error - let user try again
         } finally {
             setIsCreating(false);
@@ -181,29 +177,154 @@ const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
     );
 };
 
+interface JoinRoomModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onJoinRoom: (roomCode: string) => void;
+}
+
+const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
+    isOpen,
+    onClose,
+    onJoinRoom,
+}) => {
+    const [roomCode, setRoomCode] = useState("");
+    const [isJoining, setIsJoining] = useState(false);    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!roomCode.trim()) return;
+
+        setIsJoining(true);
+        try {
+            // Extract board ID from either a full URL or just the ID
+            let boardId = roomCode.trim();
+            
+            // Check if it's a full URL
+            if (boardId.includes('/board/')) {
+                const match = boardId.match(/\/board\/([^/?]+)/);
+                if (match) {
+                    boardId = match[1];
+                }
+            }
+            
+            onJoinRoom(boardId);
+            setRoomCode("");
+            onClose();
+        } catch (error) {
+            console.error("Failed to join room:", error);
+        } finally {
+            setIsJoining(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <AnimatePresence>
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+                onClick={onClose}>
+                <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="bg-white rounded-lg p-6 w-full max-w-md"
+                    onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-semibold text-gray-900">
+                            Join Room
+                        </h2>
+                        <button
+                            onClick={onClose}
+                            className="text-gray-400 hover:text-gray-600">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    <form onSubmit={handleSubmit}>
+                        <div className="space-y-4">                            <div>
+                                <label
+                                    htmlFor="roomCode"
+                                    className="block text-sm font-medium text-gray-700 mb-1">
+                                    Room Code or Link
+                                </label>
+                                <input
+                                    type="text"
+                                    id="roomCode"
+                                    value={roomCode}
+                                    onChange={(e) =>
+                                        setRoomCode(e.target.value)
+                                    }
+                                    placeholder="Enter board ID or paste full URL..."
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    autoFocus
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    You can enter a board ID (e.g., "abc123") or paste the full URL (e.g., "https://example.com/board/abc123").
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={!roomCode.trim() || isJoining}
+                                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg transition-colors flex items-center justify-center gap-2">
+                                {isJoining ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Joining...
+                                    </>
+                                ) : (
+                                    "Join Room"
+                                )}
+                            </button>
+                        </div>
+                    </form>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>
+    );
+};
+
 export const Dashboard: React.FC = () => {
     const navigate = useNavigate();
-    const { user, _hasHydrated } = useAuthStore();    const { boards, isLoading, fetchBoards, createBoard, deleteBoard, updateBoard } =
-        useBoardStore();
-    const [searchQuery, setSearchQuery] = useState("");
+    const { user, _hasHydrated } = useAuthStore();    const {
+        boards,
+        accessedBoards,
+        isLoading,
+        fetchBoards,
+        fetchAccessedBoards,
+        createBoard,
+        deleteBoard,
+        updateBoard,
+    } = useBoardStore();const [searchQuery, setSearchQuery] = useState("");
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-    const [filterBy, setFilterBy] = useState<"all" | "owned">("all");
+    const [filterBy, setFilterBy] = useState<"all" | "owned" | "shared">("all");
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
     const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
-    const [toastMessage, setToastMessage] = useState<string | null>(null);    // Debug: Check if user is properly loaded
-    useEffect(() => {
-        console.log("Dashboard mounted. User:", user, "Hydrated:", _hasHydrated);
-        if (_hasHydrated && !user) {
-            console.warn("No user found in Dashboard after hydration - redirecting to auth");
-            navigate('/auth');
-        }
-    }, [user, _hasHydrated, navigate]);
+    const [settingsBoard, setSettingsBoard] = useState<Board | null>(null);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
 
     useEffect(() => {
+        if (_hasHydrated && !user) {
+            navigate("/auth");
+        }
+    }, [user, _hasHydrated, navigate]);    useEffect(() => {
         if (user) {
             fetchBoards();
+            fetchAccessedBoards();
         }
-    }, [user, fetchBoards]);
+    }, [user, fetchBoards, fetchAccessedBoards]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -222,18 +343,13 @@ export const Dashboard: React.FC = () => {
         description: string;
         isPublic: boolean;
     }) => {
-        console.log("Dashboard: User state:", user);
-        console.log("Dashboard: Is authenticated:", !!user);
-
         if (!user) {
             console.error("No user found for board creation");
             return;
         }
 
         try {
-            console.log("Creating board with data:", data);
             const newBoard = await createBoard(data);
-            console.log("Board created successfully:", newBoard);
 
             if (newBoard) {
                 navigate(`/board/${newBoard.id}`);
@@ -262,11 +378,12 @@ export const Dashboard: React.FC = () => {
         } catch (error) {
             console.error("Failed to delete board:", error);
         }
-    };    const handleShareBoard = async (boardId: string) => {
+    };
+    const handleShareBoard = async (boardId: string) => {
         try {
             // Get the board first to check if it's already public
-            const board = boards.find(b => b.id === boardId);
-            
+            const board = boards.find((b) => b.id === boardId);
+
             let shareUrl;
             if (board?.isPublic) {
                 // Already public, just copy the link
@@ -278,9 +395,11 @@ export const Dashboard: React.FC = () => {
                 // Refresh boards to update the UI
                 fetchBoards();
             }
-            
+
             await navigator.clipboard.writeText(shareUrl);
-            setToastMessage("Board link copied to clipboard! Anyone with this link can now view the board.");
+            setToastMessage(
+                "Board link copied to clipboard! Anyone with this link can now view the board."
+            );
             setTimeout(() => setToastMessage(null), 4000);
         } catch (error) {
             console.error("Failed to share board:", error);
@@ -288,9 +407,11 @@ export const Dashboard: React.FC = () => {
             const shareUrl = `${window.location.origin}/board/${boardId}`;
             try {
                 await navigator.clipboard.writeText(shareUrl);
-                setToastMessage("Board link copied! Note: You may need to make the board public in settings.");
+                setToastMessage(
+                    "Board link copied! Note: You may need to make the board public in settings."
+                );
                 setTimeout(() => setToastMessage(null), 4000);
-            } catch (clipboardError) {
+            } catch {
                 // Final fallback: show the URL in a prompt
                 prompt("Copy this link to share the board:", shareUrl);
             }
@@ -316,28 +437,44 @@ export const Dashboard: React.FC = () => {
             console.error("Failed to duplicate board:", error);
         }
     };
-
     const handleJoinRoom = () => {
-        const roomCode = prompt("Enter room code:");
-        if (roomCode?.trim()) {
-            navigate(`/board/${roomCode.trim()}`);
-        }
+        setIsJoinModalOpen(true);
     };
 
-    const handleBoardClick = (boardId: string) => {
+    const handleJoinRoomSubmit = (roomCode: string) => {
+        navigate(`/board/${roomCode}`);
+    };    const handleBoardClick = (boardId: string) => {
+        // Don't navigate if a dropdown is open
+        if (selectedBoard) return;
         navigate(`/board/${boardId}`);
-    };
+    };const filteredBoards = (() => {
+        let allBoards = boards;
+        
+        // For "all" filter, combine owned/collaborator boards with accessed boards
+        if (filterBy === "all") {
+            // Create a Set of existing board IDs to avoid duplicates
+            const existingBoardIds = new Set(boards.map(board => board.id));
+            
+            // Add accessed boards that aren't already in the main boards list
+            // These are already sorted by most recent access from the backend
+            const uniqueAccessedBoards = accessedBoards.filter(board => !existingBoardIds.has(board.id));
+            
+            // Put accessed boards first (most recent access), then owned/collaborator boards
+            allBoards = [...uniqueAccessedBoards, ...boards];
+        }
+        
+        return allBoards.filter((board) => {
+            const matchesSearch = board.title
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase());
+            const matchesFilter =
+                filterBy === "all" ||
+                (filterBy === "owned" && board.userId === user?.id) ||
+                (filterBy === "shared" && board.userId !== user?.id);
 
-    const filteredBoards = boards.filter((board) => {
-        const matchesSearch = board.title
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase());
-        const matchesFilter =
-            filterBy === "all" ||
-            (filterBy === "owned" && board.userId === user?.id);
-
-        return matchesSearch && matchesFilter;
-    });
+            return matchesSearch && matchesFilter;
+        });
+    })();
 
     if (isLoading) {
         return (
@@ -345,15 +482,9 @@ export const Dashboard: React.FC = () => {
                 <LoadingSpinner size="large" />
             </div>
         );
-    }
-    return (        <div className="min-h-screen bg-gray-50">
-            {/* Debug info - remove in production */}
-            <div className="bg-yellow-100 p-2 text-sm">
-                Debug: User = {user ? `${user.username} (${user.email})` : "null"},
-                Authenticated = {user ? "true" : "false"}
-            </div>
-            
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    }    return (
+        <div className="min-h-screen bg-gray-50" style={{ overflow: 'visible' }}>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" style={{ overflow: 'visible' }}>
                 {/* Page Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -440,17 +571,17 @@ export const Dashboard: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <select
+                        <div className="flex items-center gap-2">                            <select
                                 value={filterBy}
                                 onChange={(e) =>
                                     setFilterBy(
-                                        e.target.value as "all" | "owned"
+                                        e.target.value as "all" | "owned" | "shared"
                                     )
                                 }
                                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                                 <option value="all">All Boards</option>
-                                <option value="owned">Owned by me</option>
+                                <option value="owned">Owned by Me</option>
+                                <option value="shared">Shared with Me</option>
                             </select>
 
                             <div className="flex bg-gray-100 rounded-lg p-1">
@@ -475,24 +606,30 @@ export const Dashboard: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                </div>
-
-                {/* Boards Grid/List */}
+                </div>                {/* Boards Grid/List */}
                 <div
                     className={
                         viewMode === "grid"
                             ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
                             : "space-y-4"
-                    }>
-                    {filteredBoards.map((board) => (
+                    }
+                    style={{
+                        // Ensure dropdowns aren't clipped by container
+                        overflow: 'visible'
+                    }}>                    {filteredBoards.map((board) => (
                         <motion.div
                             key={board.id}
-                            whileHover={{ scale: 1.02 }}
-                            className={`bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer ${
+                            whileHover={{ scale: 1.02 }}                            className={`bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow ${
+                                selectedBoard === board.id ? 'cursor-default' : 'cursor-pointer'
+                            } ${
                                 viewMode === "list"
                                     ? "flex items-center p-4"
                                     : "p-4"
-                            }`}
+                            }`}style={{
+                                position: 'relative',
+                                zIndex: selectedBoard === board.id ? 65 : 'auto',
+                                transition: 'z-index 0.1s ease'
+                            }}
                             onClick={() => handleBoardClick(board.id)}>
                             {viewMode === "grid" ? (
                                 <>
@@ -501,21 +638,27 @@ export const Dashboard: React.FC = () => {
                                             <div className="text-xs text-gray-500 absolute top-2 right-2 bg-white/80 px-2 py-1 rounded">
                                                 Has content
                                             </div>
-                                        ) : null}
-                                        <Palette className="w-8 h-8 text-gray-400" />
-                                        {board.isPublic && (
+                                        ) : null}                                        <Palette className="w-8 h-8 text-gray-400" />                                        {board.isPublic && (
                                             <div className="absolute bottom-2 left-2 bg-green-100 text-green-700 text-xs px-2 py-1 rounded">
                                                 Public
+                                            </div>
+                                        )}
+                                        {/* Show "Recently Accessed" badge for boards from accessedBoards that aren't owned/collaborated */}
+                                        {filterBy === "all" && 
+                                         accessedBoards.some(ab => ab.id === board.id) && 
+                                         board.userId !== user?.id && 
+                                         !board.collaborators?.some(c => c.userId === user?.id) && (
+                                            <div className="absolute bottom-2 right-2 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded">
+                                                Recently Accessed
                                             </div>
                                         )}
                                     </div>
                                     <div className="flex items-start justify-between mb-2">
                                         <h3 className="font-semibold text-gray-900 truncate flex-1">
                                             {board.title}
-                                        </h3>
+                                        </h3>{" "}
                                         <div className="flex items-center gap-1 ml-2">
-                                            <div className="relative">
-                                                <button
+                                            <div className="relative">                                                <button
                                                     className="p-1 hover:bg-gray-100 rounded"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -531,44 +674,40 @@ export const Dashboard: React.FC = () => {
 
                                                 {/* Dropdown Menu */}
                                                 {selectedBoard === board.id && (
-                                                    <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[160px]">
-                                                        <button
+                                                    <>
+                                                        <div className="fixed inset-0 z-[70]" onClick={() => setSelectedBoard(null)} />                                                        <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl py-1 z-[75] min-w-[160px]">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleShareBoard(
+                                                                        board.id
+                                                                    );
+                                                                    setSelectedBoard(
+                                                                        null
+                                                                    );
+                                                                }}
+                                                                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
+                                                                <Link className="w-3 h-3" />
+                                                                Share Board
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDuplicateBoard(
+                                                                        board
+                                                                    );
+                                                                    setSelectedBoard(
+                                                                        null
+                                                                    );
+                                                                }}
+                                                                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
+                                                                <Copy className="w-3 h-3" />
+                                                                Duplicate
+                                                            </button>                                                        <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                handleShareBoard(
-                                                                    board.id
-                                                                );
-                                                                setSelectedBoard(
-                                                                    null
-                                                                );
-                                                            }}
-                                                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
-                                                            <Link className="w-3 h-3" />
-                                                            Share Board
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleDuplicateBoard(
-                                                                    board
-                                                                );
-                                                                setSelectedBoard(
-                                                                    null
-                                                                );
-                                                            }}
-                                                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
-                                                            <Copy className="w-3 h-3" />
-                                                            Duplicate
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                navigate(
-                                                                    `/board/${board.id}/settings`
-                                                                );
-                                                                setSelectedBoard(
-                                                                    null
-                                                                );
+                                                                setSettingsBoard(board);
+                                                                setSelectedBoard(null);
                                                             }}
                                                             className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
                                                             <Settings className="w-3 h-3" />
@@ -590,10 +729,10 @@ export const Dashboard: React.FC = () => {
                                                                 }}
                                                                 className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 text-red-600 flex items-center gap-2">
                                                                 <Trash2 className="w-3 h-3" />
-                                                                Delete
-                                                            </button>
+                                                                Delete                                                            </button>
                                                         )}
                                                     </div>
+                                                </>
                                                 )}
                                             </div>
                                         </div>
@@ -617,7 +756,6 @@ export const Dashboard: React.FC = () => {
                                     <div className="w-16 h-12 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg flex items-center justify-center mr-4">
                                         <Palette className="w-5 h-5 text-gray-400" />
                                     </div>
-
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-1">
                                             <h3 className="font-semibold text-gray-900">
@@ -634,19 +772,87 @@ export const Dashboard: React.FC = () => {
                                             <div className="flex items-center gap-1">
                                                 <Users className="w-3 h-3" />
                                                 {board.collaborators?.length ||
-                                                    0}{" "}
-                                                collaborators
+                                                    0}{" "}                                                collaborators
                                             </div>
                                         </div>
-                                    </div>
-
+                                    </div>{" "}
                                     <div className="flex items-center gap-2">
-                                        <button className="p-2 hover:bg-gray-100 rounded-lg">
-                                            <Share className="w-4 h-4 text-gray-400" />
-                                        </button>
-                                        <button className="p-2 hover:bg-gray-100 rounded-lg">
-                                            <MoreHorizontal className="w-4 h-4 text-gray-400" />
-                                        </button>
+                                        <div className="relative">
+                                            <button
+                                                className="p-2 hover:bg-gray-100 rounded-lg"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleShareBoard(board.id);
+                                                }}>
+                                                <Share className="w-4 h-4 text-gray-400" />
+                                            </button>
+                                        </div>
+                                        <div className="relative">
+                                            <button
+                                                className="p-2 hover:bg-gray-100 rounded-lg"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedBoard(
+                                                        selectedBoard ===
+                                                            board.id
+                                                            ? null
+                                                            : board.id
+                                                    );
+                                                }}>
+                                                <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                                            </button>                                            {/* Dropdown Menu */}
+                                            {selectedBoard === board.id && (
+                                                <>
+                                                    <div className="fixed inset-0 z-[70]" onClick={() => setSelectedBoard(null)} />                                                        <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl py-1 z-[75] min-w-[160px]">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleShareBoard(board.id);
+                                                                setSelectedBoard(null);
+                                                            }}
+                                                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
+                                                            <Link className="w-3 h-3" />
+                                                            Share Board
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDuplicateBoard(board);
+                                                                setSelectedBoard(null);
+                                                            }}
+                                                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
+                                                            <Copy className="w-3 h-3" />
+                                                            Duplicate
+                                                        </button>
+                                                        <button                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setSettingsBoard(board);
+                                                                setSelectedBoard(null);
+                                                            }}
+                                                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
+                                                            <Settings className="w-3 h-3" />
+                                                            Settings
+                                                        </button>
+                                                    {board.userId ===
+                                                        user?.id && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeleteBoard(
+                                                                    board.id
+                                                                );
+                                                                setSelectedBoard(
+                                                                    null
+                                                                );
+                                                            }}
+                                                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 text-red-600 flex items-center gap-2">
+                                                            <Trash2 className="w-3 h-3" />
+                                                            Delete                                                        </button>
+                                                    )}
+                                                </div>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                 </>
                             )}
@@ -675,11 +881,23 @@ export const Dashboard: React.FC = () => {
                     </div>
                 )}
             </div>
-            {/* Create Board Modal */}
+            {/* Create Board Modal */}{" "}
             <CreateBoardModal
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
                 onCreateBoard={handleCreateBoard}
+            />            <JoinRoomModal
+                isOpen={isJoinModalOpen}
+                onClose={() => setIsJoinModalOpen(false)}
+                onJoinRoom={handleJoinRoomSubmit}
+            />            <BoardSettingsModal
+                isOpen={!!settingsBoard}
+                onClose={() => setSettingsBoard(null)}
+                board={settingsBoard}
+                onUpdateBoard={async (boardId, updates) => {
+                    await updateBoard(boardId, updates);
+                    await fetchBoards(); // Refresh the boards list
+                }}
             />
             {/* Simple Toast Notification */}
             {toastMessage && (

@@ -83,8 +83,8 @@ docker-compose up --build
 - [x] Docker containerization
 - [x] Environment configuration
 
-#### Authentication System
-- [x] JWT-based authentication with refresh tokens
+#### Authentication System ✅
+- [x] JWT-based authentication with refresh tokens (extended to 1h access, 30d refresh)
 - [x] User registration and login endpoints
 - [x] Password hashing with bcrypt
 - [x] Protected routes middleware
@@ -175,17 +175,26 @@ docker-compose up --build
 ### Phase 3: Collaboration Features ✅
 - [x] User presence indicators
 - [x] Real-time cursors
+- [x] Board sharing and permissions
+- [x] Public/private board settings with modal interface
+- [x] Board access tracking for shared links
+- [x] Join room modal with URL/ID support
+- [x] Board settings modal (replacing route-based settings)
+- [x] Export (PDF, PNG, SVG)
 - [ ] Voice/Video chat integration
 - [ ] Comments and annotations
-- [x] Board sharing and permissions
-- [x] Export (PDF, PNG, SVG)
 
-### Phase 4: Advanced Features ⏳
+### Phase 4: Advanced Features ✅
+- [x] Mobile responsive design
+- [x] Offline mode with sync
+- [x] Shape tools spawn in center of visible canvas area
+- [x] Board name display on board pages
+- [x] Clean navigation (removed duplicate buttons)
+- [x] Extended token/session expiration times
+- [x] Code cleanup (removed debug logs, unused files)
 - [ ] Templates library
 - [ ] Board versioning
 - [ ] Presentation mode
-- [x] Mobile responsive design
-- [x] Offline mode with sync
 - [ ] Plugins/Extensions system
 
 ## API Endpoints
@@ -198,6 +207,7 @@ docker-compose up --build
 
 ### Boards
 - `GET /api/boards` - Get user's boards
+- `GET /api/boards/accessed` - Get boards accessed via shared links
 - `POST /api/boards` - Create new board
 - `GET /api/boards/:id` - Get specific board
 - `PUT /api/boards/:id` - Update board

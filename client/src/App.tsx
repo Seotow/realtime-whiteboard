@@ -3,6 +3,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthPage } from './pages/AuthPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { BoardPage } from './pages/BoardPage';
+import { ProfilePage } from './pages/ProfilePage';
+import { SettingsPage } from './pages/SettingsPage';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { useAuthStore } from './stores/authStore';
 import './App.css';
@@ -28,8 +30,7 @@ function App() {
                 )
               } 
             />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route 
+            <Route path="/auth" element={<AuthPage />} />            <Route 
               path="/dashboard" 
               element={
                 <ProtectedRoute>
@@ -38,6 +39,21 @@ function App() {
               } 
             />
             <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/settings" 
+              element={
+                <ProtectedRoute>
+                  <SettingsPage />
+                </ProtectedRoute>
+              } 
+            />            <Route 
               path="/board/:boardId" 
               element={
                 <ProtectedRoute>

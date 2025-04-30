@@ -5,10 +5,8 @@ const prisma = new PrismaClient();
 
 export class BoardService {  // Get user's boards with pagination and search
   static async getUserBoards(userId: string, query: BoardQueryRequest) {
-    console.log('BoardService.getUserBoards called with:', { userId, query });
     const { page, limit, search, isPublic } = query;
     const skip = (page - 1) * limit;
-    console.log('Pagination values:', { page, limit, skip });
 
     const where: any = {
       OR: [
@@ -67,8 +65,7 @@ export class BoardService {  // Get user's boards with pagination and search
         pages: Math.ceil(total / limit)
       }
     };
-  }
-  // Get board by ID with permission check
+  }  // Get board by ID with permission check
   static async getBoardById(boardId: string, userId: string | null) {
     const board = await prisma.board.findUnique({
       where: { id: boardId },
@@ -96,6 +93,33 @@ export class BoardService {  // Get user's boards with pagination and search
 
     if (!hasAccess) {
       throw new Error('Access denied');
+    }
+
+    // Log access activity for authenticated users (but not owners)
+    if (userId && board.userId !== userId) {
+      try {
+        // Check if this user has accessed this board recently (within last hour) to avoid spam
+        const recentAccess = await prisma.boardActivity.findFirst({
+          where: {
+            boardId,
+            userId,
+            action: 'accessed',
+            createdAt: {
+              gte: new Date(Date.now() - 60 * 60 * 1000) // Last hour
+            }
+          }
+        });
+
+        if (!recentAccess) {
+          await this.logActivity(boardId, userId, 'accessed', {
+            isPublic: board.isPublic,
+            via: board.isPublic ? 'public_link' : 'shared_link'
+          });
+        }
+      } catch (error) {
+        console.warn('Failed to log board access:', error);
+        // Don't throw - access logging failure shouldn't prevent board access
+      }
     }
 
     return board;
@@ -312,6 +336,112 @@ export class BoardService {  // Get user's boards with pagination and search
 
     return {
       boards,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    };
+  }
+  // Get boards that user has accessed (but doesn't own or collaborate on)
+  static async getAccessedBoards(userId: string, query: BoardQueryRequest) {
+    const { page, limit, search } = query;
+    const skip = (page - 1) * limit;
+
+    // Get board IDs from activities where user accessed boards, ordered by most recent access
+    const accessActivities = await prisma.boardActivity.findMany({
+      where: {
+        userId,
+        action: 'accessed'
+      },
+      select: {
+        boardId: true,
+        createdAt: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Create a map of board ID to most recent access time
+    const boardAccessMap = new Map<string, Date>();
+    const uniqueBoardIds: string[] = [];
+    
+    // Build unique board IDs array while preserving most recent access order
+    for (const activity of accessActivities) {
+      if (!boardAccessMap.has(activity.boardId)) {
+        boardAccessMap.set(activity.boardId, activity.createdAt);
+        uniqueBoardIds.push(activity.boardId);
+      }
+    }
+
+    if (uniqueBoardIds.length === 0) {
+      return {
+        boards: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          pages: 0
+        }
+      };
+    }
+
+    // Build where clause for accessed boards
+    const where: any = {
+      id: { in: uniqueBoardIds },
+      // Exclude boards where user is owner or collaborator
+      AND: [
+        { userId: { not: userId } },
+        {
+          collaborators: {
+            none: { userId }
+          }
+        }
+      ]
+    };
+
+    // Add search filter
+    if (search) {
+      where.AND.push({
+        OR: [
+          { title: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } }
+        ]
+      });
+    }
+
+    const [fetchedBoards, total] = await Promise.all([
+      prisma.board.findMany({
+        where,
+        include: {
+          user: {
+            select: { id: true, username: true, email: true }
+          },
+          collaborators: {
+            select: { userId: true, role: true, addedAt: true }
+          },
+          _count: {
+            select: { activities: true }
+          }
+        }
+      }),
+      prisma.board.count({ where })
+    ]);
+
+    // Sort boards by most recent access time (preserved from uniqueBoardIds order)
+    const sortedBoards = fetchedBoards.sort((a, b) => {
+      const aIndex = uniqueBoardIds.indexOf(a.id);
+      const bIndex = uniqueBoardIds.indexOf(b.id);
+      return aIndex - bIndex; // Maintain the access order
+    });
+
+    // Apply pagination to the sorted results
+    const paginatedBoards = sortedBoards.slice(skip, skip + limit);
+
+    return {
+      boards: paginatedBoards,
       pagination: {
         page,
         limit,

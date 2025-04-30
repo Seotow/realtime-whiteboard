@@ -37,12 +37,11 @@ export class AuthService {
       const token = this.generateAccessToken(newUser);
       const refreshToken = this.generateRefreshToken(newUser);
       // Store refresh token in database
-      await db.prisma.session.create({
-        data: {
+      await db.prisma.session.create({        data: {
           userId: newUser.id,
           sessionToken: token,
           refreshToken: refreshToken,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         }
       });
       logger.info(`User registered: ${newUser.email}`);
@@ -79,12 +78,11 @@ export class AuthService {
       const token = this.generateAccessToken(user);
       const refreshToken = this.generateRefreshToken(user);
       // Always create a new session (allow multiple sessions per user)
-      await db.prisma.session.create({
-        data: {
+      await db.prisma.session.create({        data: {
           userId: user.id,
           sessionToken: token,
           refreshToken: refreshToken,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         }
       });
       logger.info(`User logged in: ${user.email}`);
@@ -118,11 +116,10 @@ export class AuthService {
       const newRefreshToken = this.generateRefreshToken(user);
       // Update session with new tokens
       await db.prisma.session.update({
-        where: { id: session.id },
-        data: {
+        where: { id: session.id },        data: {
           sessionToken: newToken,
           refreshToken: newRefreshToken,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
           updatedAt: new Date(),
         }
       });
@@ -185,10 +182,8 @@ export class AuthService {
       userId: user.id,
       email: user.email,
       username: user.username,
-    };
-
-    return jwt.sign(payload, this.JWT_SECRET, {
-      expiresIn: '15m',
+    };    return jwt.sign(payload, this.JWT_SECRET, {
+      expiresIn: '1h', // Extended from 15m to 1h
     });
   }
 
@@ -197,10 +192,8 @@ export class AuthService {
       userId: user.id,
       email: user.email,
       username: user.username,
-    };
-
-    return jwt.sign(payload, this.JWT_REFRESH_SECRET, {
-      expiresIn: '7d',
+    };    return jwt.sign(payload, this.JWT_REFRESH_SECRET, {
+      expiresIn: '30d', // Extended from 7d to 30d
     });
   }
 

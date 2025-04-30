@@ -102,6 +102,7 @@ export const BoardPage: React.FC = () => {
         isConnected: socketService.isConnected(),
         onShare: () => setShowShareModal(true)
       }}
+      boardName={currentBoard.title}
     >
       <div className="h-screen overflow-hidden">
         <Canvas 

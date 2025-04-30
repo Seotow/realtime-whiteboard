@@ -86,15 +86,12 @@ class BoardApiService {  private getAuthHeaders() {
         token = parsedAuth.state?.token;
       }
     } catch (error) {
-      console.warn('Failed to parse auth storage:', error);
-    }
+      console.warn('Failed to parse auth storage:', error);    }
     
     // Fallback to direct localStorage access
     if (!token) {
       token = localStorage.getItem('accessToken');
     }
-    
-    console.log('BoardAPI: Retrieved token:', token ? 'present' : 'missing');
     
     return {
       'Content-Type': 'application/json',
@@ -139,9 +136,25 @@ class BoardApiService {  private getAuthHeaders() {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.set('page', params.page.toString());
     if (params?.limit) searchParams.set('limit', params.limit.toString());
+    if (params?.search) searchParams.set('search', params.search);    const response = await fetch(`${API_BASE_URL}/api/boards/public?${searchParams}`, {
+      headers: this.getAuthHeaders()
+    });
+
+    return this.handleResponse<BoardsResponse>(response);
+  }
+
+  // Get accessed boards (boards user has viewed via shared links)
+  async getAccessedBoards(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }): Promise<BoardsResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', params.page.toString());
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.search) searchParams.set('search', params.search);
 
-    const response = await fetch(`${API_BASE_URL}/api/boards/public?${searchParams}`, {
+    const response = await fetch(`${API_BASE_URL}/api/boards/accessed?${searchParams}`, {
       headers: this.getAuthHeaders()
     });
 
@@ -155,23 +168,13 @@ class BoardApiService {  private getAuthHeaders() {
     });
 
     return this.handleResponse<Board>(response);
-  }
-  // Create new board
+  }  // Create new board
   async createBoard(data: CreateBoardData): Promise<Board> {
-    console.log('BoardAPI: Creating board with data:', data);
-    console.log('BoardAPI: API_BASE_URL:', API_BASE_URL);
-    
-    const token = localStorage.getItem('accessToken');
-    console.log('BoardAPI: Auth token present:', !!token);
-    
     const response = await fetch(`${API_BASE_URL}/api/boards`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify(data)
     });
-
-    console.log('BoardAPI: Response status:', response.status);
-    console.log('BoardAPI: Response ok:', response.ok);
     
     return this.handleResponse<Board>(response);
   }
@@ -198,7 +201,6 @@ class BoardApiService {  private getAuthHeaders() {
   }
   // Add collaborator
   async addCollaborator(boardId: string, email: string, role: string = 'viewer'): Promise<CollaboratorResponse> {
-    console.log('BoardAPI: Adding collaborator to board:', { boardId, email, role });
     const response = await fetch(`${API_BASE_URL}/api/boards/${boardId}/collaborators`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
@@ -207,18 +209,15 @@ class BoardApiService {  private getAuthHeaders() {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('BoardAPI: Failed to add collaborator:', errorData);
       throw new Error(errorData.error || 'Failed to add collaborator');
     }
 
     const result = await response.json();
-    console.log('BoardAPI: Collaborator added successfully:', result);
     return result;
   }
 
   // Remove collaborator
   async removeCollaborator(boardId: string, collaboratorId: string): Promise<{ message: string }> {
-    console.log('BoardAPI: Removing collaborator from board:', { boardId, collaboratorId });
     const response = await fetch(`${API_BASE_URL}/api/boards/${boardId}/collaborators/${collaboratorId}`, {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
@@ -226,18 +225,15 @@ class BoardApiService {  private getAuthHeaders() {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('BoardAPI: Failed to remove collaborator:', errorData);
       throw new Error(errorData.error || 'Failed to remove collaborator');
     }
 
     const result = await response.json();
-    console.log('BoardAPI: Collaborator removed successfully:', result);
     return result;
   }
 
   // Get board activities
   async getBoardActivities(boardId: string, limit: number = 20): Promise<BoardActivity[]> {
-    console.log('BoardAPI: Fetching board activities:', { boardId, limit });
     const response = await fetch(`${API_BASE_URL}/api/boards/${boardId}/activities?limit=${limit}`, {
       method: 'GET',
       headers: this.getAuthHeaders(),
@@ -245,17 +241,14 @@ class BoardApiService {  private getAuthHeaders() {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('BoardAPI: Failed to fetch activities:', errorData);
       throw new Error(errorData.error || 'Failed to fetch board activities');
     }
 
     const result = await response.json();
-    console.log('BoardAPI: Board activities fetched successfully:', result);
     return result;
   }
 
   async generateShareableLink(boardId: string, makePublic: boolean = true): Promise<{ shareUrl: string; isPublic: boolean }> {
-    console.log('BoardAPI: Generating shareable link:', { boardId, makePublic });
     
     // Update board to make it public if requested
     if (makePublic) {
@@ -263,7 +256,6 @@ class BoardApiService {  private getAuthHeaders() {
     }
     
     const shareUrl = `${window.location.origin}/board/${boardId}`;
-    console.log('BoardAPI: Generated shareable link:', shareUrl);
     
     return { shareUrl, isPublic: makePublic };
   }
@@ -272,7 +264,6 @@ class BoardApiService {  private getAuthHeaders() {
     content: FabricCanvasData, 
     settings?: Record<string, unknown>
   ): Promise<{ board: Board; message: string }> {
-    console.log('BoardAPI: Saving canvas content:', { boardId, contentSize: content.objects.length });
     const response = await fetch(`${API_BASE_URL}/api/boards/${boardId}/content`, {
       method: 'PUT',
       headers: this.getAuthHeaders(),
@@ -281,12 +272,10 @@ class BoardApiService {  private getAuthHeaders() {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('BoardAPI: Failed to save canvas content:', errorData);
       throw new Error(errorData.error || 'Failed to save canvas content');
     }
 
     const result = await response.json();
-    console.log('BoardAPI: Canvas content saved successfully');
     return { board: result, message: 'Canvas saved successfully' };
   }
 }

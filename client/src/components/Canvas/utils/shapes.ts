@@ -4,15 +4,21 @@ import type { FabricObjectWithId, ShapeType } from "../types/canvas";
 export const createShape = (
     shapeType: ShapeType,
     brushColor: string,
-    opacity: number
+    opacity: number,
+    centerX?: number,
+    centerY?: number
 ): FabricObjectWithId => {
     let shape: fabric.FabricObject;
+
+    // Use provided center or fallback to default position
+    const posX = centerX !== undefined ? centerX - 50 : 100; // 50 is half of default width/radius
+    const posY = centerY !== undefined ? centerY - 50 : 100;
 
     switch (shapeType) {
         case "rectangle":
             shape = new fabric.Rect({
-                left: 100,
-                top: 100,
+                left: posX,
+                top: posY,
                 width: 100,
                 height: 100,
                 fill: brushColor,
@@ -23,8 +29,8 @@ export const createShape = (
             break;
         case "circle":
             shape = new fabric.Circle({
-                left: 100,
-                top: 100,
+                left: posX,
+                top: posY,
                 radius: 50,
                 fill: brushColor,
                 stroke: "#000",
@@ -34,8 +40,8 @@ export const createShape = (
             break;
         case "triangle":
             shape = new fabric.Triangle({
-                left: 100,
-                top: 100,
+                left: posX,
+                top: posY,
                 width: 100,
                 height: 100,
                 fill: brushColor,
@@ -52,10 +58,19 @@ export const createShape = (
     return shape as FabricObjectWithId;
 };
 
-export const createText = (brushColor: string, opacity: number): FabricObjectWithId => {
+export const createText = (
+    brushColor: string, 
+    opacity: number,
+    centerX?: number,
+    centerY?: number
+): FabricObjectWithId => {
+    // Use provided center or fallback to default position
+    const posX = centerX !== undefined ? centerX - 50 : 100; // Approximate text width offset
+    const posY = centerY !== undefined ? centerY - 10 : 100; // Half of default font size
+
     const text = new fabric.IText("Type here...", {
-        left: 100,
-        top: 100,
+        left: posX,
+        top: posY,
         fontSize: 20,
         fill: brushColor,
         opacity,
@@ -65,8 +80,22 @@ export const createText = (brushColor: string, opacity: number): FabricObjectWit
     return text as FabricObjectWithId;
 };
 
-export const createLine = (brushColor: string, brushSize: number, opacity: number): FabricObjectWithId => {
-    const line = new fabric.Line([50, 100, 200, 100], {
+export const createLine = (
+    brushColor: string, 
+    brushSize: number, 
+    opacity: number,
+    centerX?: number,
+    centerY?: number
+): FabricObjectWithId => {
+    // Use provided center or fallback to default position
+    const posX = centerX !== undefined ? centerX : 125;
+    const posY = centerY !== undefined ? centerY : 100;
+    
+    // Create a horizontal line centered on the position
+    const lineStart = posX - 75; // 150px line length, so start 75px before center
+    const lineEnd = posX + 75;
+
+    const line = new fabric.Line([lineStart, posY, lineEnd, posY], {
         stroke: brushColor,
         strokeWidth: brushSize,
         opacity,
@@ -76,11 +105,21 @@ export const createLine = (brushColor: string, brushSize: number, opacity: numbe
     return line as FabricObjectWithId;
 };
 
-export const createArrow = (brushColor: string, brushSize: number, opacity: number): FabricObjectWithId => {
+export const createArrow = (
+    brushColor: string, 
+    brushSize: number, 
+    opacity: number,
+    centerX?: number,
+    centerY?: number
+): FabricObjectWithId => {
+    // Use provided center or fallback to default position
+    const posX = centerX !== undefined ? centerX - 40 : 100; // 80px arrow width, so offset by 40px
+    const posY = centerY !== undefined ? centerY : 100;
+
     const arrowPath = "M 0 0 L 80 0 M 70 -5 L 80 0 L 70 5";
     const arrow = new fabric.Path(arrowPath, {
-        left: 100,
-        top: 100,
+        left: posX,
+        top: posY,
         stroke: brushColor,
         strokeWidth: brushSize,
         fill: "",

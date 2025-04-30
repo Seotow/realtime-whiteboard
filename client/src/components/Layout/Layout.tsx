@@ -11,12 +11,13 @@ interface CollaborationInfo {
 interface LayoutProps {
   children: React.ReactNode;
   collaboration?: CollaborationInfo;
+  boardName?: string;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, collaboration }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, collaboration, boardName }) => {
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header collaboration={collaboration} />
+      <Header collaboration={collaboration} boardName={boardName} />
       <main>{children}</main>
     </div>
   );

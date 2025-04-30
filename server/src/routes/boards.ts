@@ -51,6 +51,29 @@ boardRoutes.get('/public', validateInput(z.object({ query: boardQuerySchema })),
   }
 });
 
+// Get accessed boards (boards user has viewed via shared links)
+boardRoutes.get('/accessed', async (req, res, next) => {
+  try {
+    const userId = req.user!.userId;
+    
+    // Parse and validate query parameters with defaults
+    const queryResult = boardQuerySchema.safeParse(req.query);
+    if (!queryResult.success) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Invalid query parameters',
+        errors: queryResult.error.errors
+      });
+      return;
+    }
+    
+    const result = await BoardService.getAccessedBoards(userId, queryResult.data);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Create new board
 boardRoutes.post('/', validateInput(z.object({ body: createBoardSchema })), async (req, res, next) => {
   try {

@@ -112,12 +112,7 @@ const authenticateSocket = async (socket: Socket, next: Function) => {
   try {
     const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
     
-    console.log('Socket auth: token received:', token ? 'present' : 'missing');
-    console.log('Socket auth: auth object:', socket.handshake.auth);
-    console.log('Socket auth: authorization header:', socket.handshake.headers.authorization);
-    
     if (!token) {
-      console.log('Socket auth: No token provided, allowing anonymous access for public boards');
       // Allow anonymous access - create anonymous user with random name
       const randomName = anonymousNames[Math.floor(Math.random() * anonymousNames.length)];
       socket.data.user = {
@@ -128,15 +123,12 @@ const authenticateSocket = async (socket: Socket, next: Function) => {
       return next();
     }
 
-    console.log('Socket auth: Verifying token...');
     const decoded = authService.verifyToken(token);
-    console.log('Socket auth: Token verified successfully:', decoded);
     socket.data.user = decoded;
     next();
   } catch (error) {
     console.error('Socket auth: Token verification failed:', error);
     // For token verification errors, still allow anonymous access
-    console.log('Socket auth: Falling back to anonymous access');
     const randomName = anonymousNames[Math.floor(Math.random() * anonymousNames.length)];
     socket.data.user = {
       userId: `anonymous_${socket.id}`,

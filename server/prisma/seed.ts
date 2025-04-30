@@ -5,19 +5,9 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('Starting database seeding...');
+
   // Create demo users
   const hashedPassword = await bcrypt.hash('password123', 10);
-  
-  const demoUser = await prisma.user.upsert({
-    where: { id: '507f1f77bcf86cd799439011' },
-    update: {},
-    create: {
-      id: '507f1f77bcf86cd799439011',
-      email: 'demo@example.com',
-      username: 'demouser',
-      password: hashedPassword,
-    },
-  });
   
   const user1 = await prisma.user.upsert({
     where: { email: 'demo@whiteboard.com' },
@@ -38,24 +28,14 @@ async function main() {
       password: hashedPassword,
     },
   });
-
   // Create demo boards
-  const demoBoard1 = await prisma.board.upsert({
-    where: { id: user1.id }, 
-    update: {},
-    create: {
+  const demoBoard1 = await prisma.board.create({
+    data: {
       title: 'Welcome Board',
       description: 'A sample whiteboard to get you started',
       isPublic: true,
       isTemplate: true,
       userId: user1.id,
-      settings: {
-        width: 1920,
-        height: 1080,
-        backgroundColor: '#f8fafc',
-        gridEnabled: true,
-        gridSize: 20
-      },
       content: {
         version: '5.2.4',
         objects: [
@@ -83,52 +63,7 @@ async function main() {
         ]
       }
     }
-  }).catch(async () => {
-    // If upsert fails, just create
-    return await prisma.board.create({
-      data: {
-        title: 'Welcome Board',
-        description: 'A sample whiteboard to get you started',
-        isPublic: true,
-        isTemplate: true,
-        userId: user1.id,
-        settings: {
-          width: 1920,
-          height: 1080,
-          backgroundColor: '#f8fafc',
-          gridEnabled: true,
-          gridSize: 20
-        },
-        content: {
-          version: '5.2.4',
-          objects: [
-            {
-              type: 'textbox',
-              left: 100,
-              top: 100,
-              width: 200,
-              height: 50,
-              text: 'Welcome to Whiteboard!',
-              fontSize: 24,
-              fontFamily: 'Arial',
-              fill: '#1f2937'
-            },
-            {
-              type: 'rect',
-              left: 100,
-              top: 200,
-              width: 150,
-              height: 100,
-              fill: '#3b82f6',
-              stroke: '#1d4ed8',
-              strokeWidth: 2
-            }
-          ]
-        }
-      }
-    });
   });
-
   const demoBoard2 = await prisma.board.create({
     data: {
       title: 'Wireframe Template',
@@ -136,13 +71,6 @@ async function main() {
       isPublic: true,
       isTemplate: true,
       userId: user2.id,
-      settings: {
-        width: 1920,
-        height: 1080,
-        backgroundColor: '#ffffff',
-        gridEnabled: true,
-        gridSize: 20
-      },
       content: {
         version: '5.2.4',
         objects: [
@@ -181,7 +109,9 @@ async function main() {
     }
   }).catch(() => {
     // Ignore if already exists
+    console.log('Collaborator relationship already exists');
   });
+
   // Add some activities
   await prisma.boardActivity.createMany({
     data: [
@@ -211,8 +141,8 @@ async function main() {
   console.log('- demo@whiteboard.com (password: password123)');
   console.log('- artist@whiteboard.com (password: password123)');
   console.log('Demo boards created:');
-  console.log('- Welcome Board (public template)');
-  console.log('- Wireframe Template (public template)');
+  console.log('- Welcome Board (public)');
+  console.log('- Wireframe Template (public)');
 }
 
 main()
