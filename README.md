@@ -26,6 +26,17 @@ npm install
 # Install all dependencies (client + server)
 npm run install:all
 
+# Environment Setup
+# 1. Copy environment template files
+cp .env.production.template .env.production
+cp server/.env.template server/.env
+
+# 2. Configure your environment variables in the copied files:
+# - Set up MongoDB Atlas or local MongoDB
+# - Configure Redis (optional for development)
+# - Set JWT secrets
+# - Configure other settings as needed
+
 # Start development environment
 npm run dev
 ```

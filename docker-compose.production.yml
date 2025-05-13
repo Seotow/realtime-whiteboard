@@ -1,0 +1,28 @@
+services:
+  # Backend Server (using Redis Cloud)
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      target: production
+    container_name: whiteboard-server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: ${PORT:-5000}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL:-redis://username:password@redis-10766.crce178.ap-east-1-1.ec2.redns.redis-cloud.com:10766}
+      CLIENT_URL: ${CLIENT_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_EXPIRE_TIME: 15m
+      JWT_REFRESH_EXPIRE_TIME: 7d
+      LOG_LEVEL: info
+    ports:
+      - "${PORT:-5000}:${PORT:-5000}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-5000}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

@@ -1,15 +1,15 @@
+version: '3.8'
+
 services:
   # MongoDB Database
   mongodb:
     image: mongo:7
-    container_name: whiteboard-mongodb
+    container_name: whiteboard-mongodb-prod
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-secure_password_123}
       MONGO_INITDB_DATABASE: whiteboard
-    ports:
-      - "27017:27017"
     volumes:
       - mongodb_data:/data/db
       - ./server/prisma/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
@@ -25,17 +25,15 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: whiteboard-redis
+    container_name: whiteboard-redis-prod
     restart: unless-stopped
-    command: redis-server --appendonly yes
-    ports:
-      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_password_123}
     volumes:
       - redis_data:/data
     networks:
       - whiteboard-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-redis_password_123}", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -46,21 +44,19 @@ services:
       context: ./server
       dockerfile: Dockerfile
       target: production
-    container_name: whiteboard-server
+    container_name: whiteboard-server-prod
     restart: unless-stopped
     environment:
       NODE_ENV: production
       PORT: 5000
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
-      CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
-      JWT_SECRET: ${JWT_SECRET:-prod-jwt-secret-change-this-in-production-12345}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-prod-refresh-secret-change-this-in-production-12345}
+      DATABASE_URL: mongodb://admin:${MONGO_ROOT_PASSWORD:-secure_password_123}@mongodb:27017/whiteboard?authSource=admin
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_password_123}@redis:6379
+      CLIENT_URL: ${CLIENT_URL:-http://localhost}
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-this-in-production}
       JWT_EXPIRE_TIME: 15m
       JWT_REFRESH_EXPIRE_TIME: 7d
-      LOG_LEVEL: info
-    ports:
-      - "5000:5000"
+      LOG_LEVEL: warn
     depends_on:
       mongodb:
         condition: service_healthy
@@ -80,25 +76,32 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
-      target: development
-    container_name: whiteboard-client
+      target: production
+    container_name: whiteboard-client-prod
     restart: unless-stopped
     environment:
-      VITE_API_URL: http://localhost:5000
-      VITE_SOCKET_URL: ws://localhost:5000
-      VITE_APP_NAME: Real-time Whiteboard
-      VITE_APP_VERSION: 2.0.0
-      VITE_ENABLE_CHAT: true
-      VITE_ENABLE_VIDEO_CHAT: false
-      VITE_ENABLE_FILE_UPLOAD: true
-    ports:
-      - "3000:3000"
+      NGINX_HOST: localhost
+      NGINX_PORT: 80
     depends_on:
       server:
         condition: service_healthy
+    networks:
+      - whiteboard-network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: whiteboard-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
     volumes:
-      - ./client:/app
-      - /app/node_modules
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - client
+      - server
     networks:
       - whiteboard-network
 
