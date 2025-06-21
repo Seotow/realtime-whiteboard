@@ -239,7 +239,7 @@ docker-compose up --build
 ### Project Setup
 ```bash
 # Clone and setup
-git clone <repository-url>
+git clone https://github.com/Seotow/realtime-whiteboard/
 cd realtime-whiteboard
 npm run install:all
 
